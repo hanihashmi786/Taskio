@@ -7,6 +7,8 @@ const Signin = () => {
     password: ''
   });
 
+  const [message, setMessage] = useState(''); // For login status
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -16,12 +18,20 @@ const Signin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setMessage(''); // clear previous messages
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/auth/login/', formData);
-      alert('Login successful!');
+      const response = await axios.post(
+        'http://127.0.0.1:8000/api/accounts/login/',
+        formData
+      );
       localStorage.setItem('access_token', response.data.access_token);
+      setMessage('Login successful! 🎉');
     } catch (error) {
-      console.error('There was an error!', error);
+      setMessage(
+        error.response && error.response.data
+          ? error.response.data.error || 'Login failed!'
+          : 'Login failed!'
+      );
     }
   };
 
@@ -59,6 +69,17 @@ const Signin = () => {
         >
           Sign In
         </button>
+
+        {/* Show login result message */}
+        {message && (
+          <div
+            className={`mt-2 text-center font-medium ${
+              message.includes('successful') ? 'text-green-600' : 'text-red-600'
+            }`}
+          >
+            {message}
+          </div>
+        )}
       </form>
     </div>
   );
