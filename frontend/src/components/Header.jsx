@@ -91,17 +91,6 @@ const Header = () => {
 
           {/* Right Section */}
           <div className="flex items-center space-x-2">
-            <button
-              onClick={toggleTheme}
-              className="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus-ring"
-              title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            >
-              {theme === "light" ? (
-                <Moon className="w-5 h-5 text-gray-600" />
-              ) : (
-                <Sun className="w-5 h-5 text-slate-300" />
-              )}
-            </button>
 
             {/* User Menu */}
             <div className="relative">
@@ -111,12 +100,12 @@ const Header = () => {
               >
                 <img
                   src={user.avatar || "/placeholder.svg"}
-                  alt={user.name}
+                  alt={user.name || user.username || "User"}
                   className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
                 />
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{user.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">{user.email}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{user.name || user.username || "User"}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">{user.email || "No email"}</p>
                 </div>
               </button>
 

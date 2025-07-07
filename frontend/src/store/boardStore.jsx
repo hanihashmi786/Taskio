@@ -159,7 +159,8 @@ const useBoardStore = create(
       canAccessBoard: (boardId) => {
         const state = get()
         const board = state.boards.find((b) => b.id === boardId)
-        return board?.members.some((member) => member.id === state.currentUserId) || false
+        if (!board || !Array.isArray(board.members)) return false
+        return board.members.some((member) => member.id === state.currentUserId)
       },
 
       canEditBoard: (boardId) => {

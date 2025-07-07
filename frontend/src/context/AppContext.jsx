@@ -8,8 +8,9 @@ const AppContext = createContext()
 const initialState = {
   theme: "light",
   user: {
-    name: "John Doe",
-    email: "john@example.com",
+    name: "",
+    email: "",
+    username: "",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
   },
   boards: [],
@@ -210,7 +211,7 @@ function appReducer(state, action) {
           state.currentBoard?.id === action.payload.id
             ? { ...state.currentBoard, ...action.payload }
             : state.currentBoard,
-      }
+      } 
 
     case ACTIONS.DELETE_BOARD:
       return {
@@ -471,7 +472,14 @@ export function AppProvider({ children }) {
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser)
-        dispatch({ type: ACTIONS.UPDATE_USER, payload: user })
+        // Map user data to expected structure
+        const mappedUser = {
+          name: user.name || user.username || "",
+          email: user.email || "",
+          username: user.username || "",
+          avatar: user.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
+        }
+        dispatch({ type: ACTIONS.UPDATE_USER, payload: mappedUser })
       } catch (error) {
         console.error("Error loading user from localStorage:", error)
       }
