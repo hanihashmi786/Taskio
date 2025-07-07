@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { X, Calendar, Tag, CheckSquare, MessageCircle, Plus, Trash2, Send } from "lucide-react"
+import { X, Calendar, Tag, CheckSquare, MessageCircle, Plus, Trash2, Send, UserX, Users } from "lucide-react"
 import useBoardStore from "../store/boardStore"
 
 const CardModal = ({ card, onClose }) => {
@@ -9,11 +9,13 @@ const CardModal = ({ card, onClose }) => {
     title: card.title,
     description: card.description || "",
     dueDate: card.dueDate || "",
+    assignees: card.assignees || [],
     checklist: card.checklist || [],
     comments: card.comments || [],
   })
   const [newComment, setNewComment] = useState("")
   const [newChecklistItem, setNewChecklistItem] = useState("")
+  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false)
 
   const board = getCurrentBoard()
   const listId = board?.lists.find((list) => list.cards.some((c) => c.id === card.id))?.id
@@ -56,7 +58,7 @@ const CardModal = ({ card, onClose }) => {
       const comment = {
         id: `comment-${Date.now()}`,
         text: newComment.trim(),
-        author: "Current User", // In a real app, this would be the logged-in user
+        author: "Current User",
         timestamp: new Date().toISOString(),
       }
       handleInputChange("comments", [...formData.comments, comment])
@@ -95,7 +97,30 @@ const CardModal = ({ card, onClose }) => {
     handleInputChange("checklist", updatedChecklist)
   }
 
+  const handleAssigneeToggle = (memberId) => {
+    const currentAssignees = formData.assignees || []
+    const isAssigned = currentAssignees.includes(memberId)
+
+    if (isAssigned) {
+      handleInputChange(
+        "assignees",
+        currentAssignees.filter((id) => id !== memberId),
+      )
+    } else {
+      handleInputChange("assignees", [...currentAssignees, memberId])
+    }
+  }
+
+  const removeAssignee = (memberId) => {
+    const currentAssignees = formData.assignees || []
+    handleInputChange(
+      "assignees",
+      currentAssignees.filter((id) => id !== memberId),
+    )
+  }
+
   const completedTasks = formData.checklist.filter((item) => item.completed).length
+  const assignedMembers = board?.members.filter((member) => formData.assignees?.includes(member.id)) || []
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -149,18 +174,98 @@ const CardModal = ({ card, onClose }) => {
             />
           </div>
 
-          {/* Due Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Due Date
-            </label>
-            <input
-              type="date"
-              value={formData.dueDate}
-              onChange={(e) => handleInputChange("dueDate", e.target.value)}
-              className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          {/* Due Date and Assignees */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Due Date
+              </label>
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => handleInputChange("dueDate", e.target.value)}
+                className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Assignees ({assignedMembers.length})
+              </label>
+              <div className="relative">
+                <button
+                  onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
+                  className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-left text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add assignees...
+                </button>
+
+                {showAssigneeDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowAssigneeDropdown(false)} />
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg py-2 z-20 max-h-48 overflow-y-auto">
+                      {board?.members.map((member) => {
+                        const isAssigned = formData.assignees?.includes(member.id)
+                        return (
+                          <button
+                            key={member.id}
+                            onClick={() => handleAssigneeToggle(member.id)}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-3 ${
+                              isAssigned
+                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                                : "text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
+                            }`}
+                          >
+                            <img
+                              src={member.avatar || "/placeholder.svg"}
+                              alt={member.name}
+                              className="w-6 h-6 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
+                            />
+                            <span className="flex-1">{member.name}</span>
+                            {isAssigned && (
+                              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                <div className="w-2 h-2 bg-white rounded-full" />
+                              </div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Display assigned members */}
+              {assignedMembers.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {assignedMembers.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-700 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={member.avatar || "/placeholder.svg"}
+                          alt={member.name}
+                          className="w-6 h-6 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
+                        />
+                        <span className="text-sm font-medium text-gray-900 dark:text-slate-100">{member.name}</span>
+                      </div>
+                      <button
+                        onClick={() => removeAssignee(member.id)}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors"
+                        title="Remove assignee"
+                      >
+                        <UserX className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Checklist */}

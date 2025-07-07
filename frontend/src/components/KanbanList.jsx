@@ -9,17 +9,16 @@ import useBoardStore from "../store/boardStore"
 import KanbanCard from "./KanbanCard"
 import AddCardForm from "./AddCardForm"
 
-const KanbanList = ({ list, boardId, onCardClick }) => {
+const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
   const { updateList, deleteList, canAccessBoard } = useBoardStore()
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState(list.title)
   const [showAddCard, setShowAddCard] = useState(false)
+  const [addCardIndex, setAddCardIndex] = useState(-1)
   const [showMenu, setShowMenu] = useState(false)
 
-  // Check if user can access this board
   const hasAccess = canAccessBoard(boardId)
 
-  // Droppable for cards
   const { setNodeRef: setDroppableRef } = useDroppable({
     id: list.id,
     data: {
@@ -28,7 +27,6 @@ const KanbanList = ({ list, boardId, onCardClick }) => {
     },
   })
 
-  // Sortable for list reordering
   const {
     attributes,
     listeners,
@@ -72,10 +70,16 @@ const KanbanList = ({ list, boardId, onCardClick }) => {
     setShowMenu(false)
   }
 
-  const handleAddCard = () => {
+  const handleAddCard = (index = -1) => {
     if (hasAccess) {
+      setAddCardIndex(index)
       setShowAddCard(true)
     }
+  }
+
+  const handleAddCardComplete = () => {
+    setShowAddCard(false)
+    setAddCardIndex(-1)
   }
 
   if (!hasAccess) {
@@ -86,6 +90,8 @@ const KanbanList = ({ list, boardId, onCardClick }) => {
     <div
       ref={setSortableRef}
       style={style}
+      data-list-id={list.id}
+      {...props}
       className={`flex-shrink-0 w-72 ${isDragging ? "opacity-50 rotate-2 scale-105" : ""} transition-all duration-200`}
     >
       <div className="bg-white/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-xl card-shadow border border-gray-200 dark:border-slate-700/50 h-fit max-h-[calc(100vh-200px)] flex flex-col">
@@ -155,49 +161,96 @@ const KanbanList = ({ list, boardId, onCardClick }) => {
         {/* Cards Container */}
         <div
           ref={setDroppableRef}
-          className="flex-1 p-3 space-y-3 min-h-[150px] max-h-[calc(100vh-350px)] overflow-y-auto"
+          className="flex-1 p-3 space-y-3 min-h-[150px] max-h-[calc(100vh-350px)] overflow-y-auto custom-scrollbar"
         >
           <SortableContext items={list.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-            {list.cards.map((card) => (
-              <KanbanCard key={card.id} card={card} onClick={() => onCardClick(card)} />
-            ))}
-          </SortableContext>
-
-          {list.cards.length === 0 && !showAddCard && (
-            <div className="text-center py-8 text-gray-400 dark:text-slate-400">
-              <div className="w-10 h-10 bg-gray-100 dark:bg-slate-700/20 rounded-xl flex items-center justify-center mx-auto mb-3">
-                <Plus className="w-5 h-5" />
+            {list.cards.length === 0 && !showAddCard ? (
+              <div className="text-center py-8 text-gray-400 dark:text-slate-400">
+                <div className="w-10 h-10 bg-gray-100 dark:bg-slate-700/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-medium mb-2">No cards yet</p>
+                <button
+                  onClick={() => handleAddCard()}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
+                >
+                  Add your first card
+                </button>
               </div>
-              <p className="text-sm font-medium mb-2">No cards yet</p>
-              <button
-                onClick={handleAddCard}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
-              >
-                Add your first card
-              </button>
-            </div>
-          )}
+            ) : (
+              <>
+                {/* Add card at top */}
+                {showAddCard && addCardIndex === 0 && (
+                  <div className="mb-3">
+                    <AddCardForm
+                      boardId={boardId}
+                      listId={list.id}
+                      insertIndex={0}
+                      onCancel={handleAddCardComplete}
+                      onAdd={handleAddCardComplete}
+                    />
+                  </div>
+                )}
+
+                {list.cards.map((card, index) => (
+                  <div key={card.id}>
+                    <KanbanCard card={card} onClick={() => onCardClick(card)} />
+
+                    {/* Add card button between cards */}
+                    <div className="flex justify-center py-2 opacity-0 hover:opacity-100 transition-opacity group">
+                      <button
+                        onClick={() => handleAddCard(index + 1)}
+                        className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-200 transform hover:scale-110"
+                        title="Add card here"
+                      >
+                        <Plus className="w-4 h-4 text-gray-400 dark:text-slate-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
+                      </button>
+                    </div>
+
+                    {/* Add card form at specific position */}
+                    {showAddCard && addCardIndex === index + 1 && (
+                      <div className="my-3">
+                        <AddCardForm
+                          boardId={boardId}
+                          listId={list.id}
+                          insertIndex={index + 1}
+                          onCancel={handleAddCardComplete}
+                          onAdd={handleAddCardComplete}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Add card at end */}
+                {showAddCard && addCardIndex === -1 && (
+                  <div className="mt-3">
+                    <AddCardForm
+                      boardId={boardId}
+                      listId={list.id}
+                      insertIndex={-1}
+                      onCancel={handleAddCardComplete}
+                      onAdd={handleAddCardComplete}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </SortableContext>
         </div>
 
-        {/* Add Card */}
-        <div className="p-3 border-t border-gray-200 dark:border-slate-700/30">
-          {showAddCard ? (
-            <AddCardForm
-              boardId={boardId}
-              listId={list.id}
-              onCancel={() => setShowAddCard(false)}
-              onAdd={() => setShowAddCard(false)}
-            />
-          ) : (
+        {/* Add Card at Bottom */}
+        {!showAddCard && (
+          <div className="p-3 border-t border-gray-200 dark:border-slate-700/30">
             <button
-              onClick={handleAddCard}
-              className="w-full flex items-center gap-2 p-2.5 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-700/50 rounded-lg transition-all duration-200 group focus-ring"
+              onClick={() => handleAddCard()}
+              className="w-full flex items-center gap-2 p-3 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-700/50 rounded-lg transition-all duration-200 group focus-ring"
             >
               <Plus className="w-4 h-4 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
               <span className="text-sm font-medium">Add a card</span>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

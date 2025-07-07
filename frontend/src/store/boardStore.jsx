@@ -11,6 +11,7 @@ const useBoardStore = create(
           description: "Main project management board",
           color: "bg-blue-500",
           icon: "📋",
+          starred: true,
           createdAt: new Date().toISOString(),
           createdBy: "current-user",
           members: [
@@ -30,6 +31,14 @@ const useBoardStore = create(
               role: "member",
               addedAt: new Date().toISOString(),
             },
+            {
+              id: "member-2",
+              name: "Sarah Wilson",
+              email: "sarah@example.com",
+              avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face",
+              role: "member",
+              addedAt: new Date().toISOString(),
+            },
           ],
           lists: [
             {
@@ -45,7 +54,7 @@ const useBoardStore = create(
                     { id: "high-priority", name: "High Priority", color: "bg-red-500", textColor: "text-white" },
                   ],
                   dueDate: "2024-01-20",
-                  assignedTo: "member-1",
+                  assignees: ["member-1", "member-2"],
                   checklist: [
                     { id: "check-1", text: "Research competitors", completed: true },
                     { id: "check-2", text: "Create wireframes", completed: false },
@@ -68,7 +77,7 @@ const useBoardStore = create(
                   description: "Initialize Git repository and set up project structure",
                   labels: [{ id: "development", name: "Development", color: "bg-green-500", textColor: "text-white" }],
                   dueDate: null,
-                  assignedTo: "current-user",
+                  assignees: ["current-user"],
                   checklist: [],
                   comments: [],
                   createdAt: "2024-01-10T10:00:00Z",
@@ -88,7 +97,7 @@ const useBoardStore = create(
                     { id: "backend", name: "Backend", color: "bg-purple-500", textColor: "text-white" },
                   ],
                   dueDate: "2024-01-25",
-                  assignedTo: "current-user",
+                  assignees: ["current-user", "member-1"],
                   checklist: [
                     { id: "check-4", text: "Set up authentication routes", completed: true },
                     { id: "check-5", text: "Implement JWT middleware", completed: false },
@@ -113,7 +122,7 @@ const useBoardStore = create(
                   description: "Initial project setup and planning phase completed",
                   labels: [{ id: "planning", name: "Planning", color: "bg-yellow-500", textColor: "text-black" }],
                   dueDate: null,
-                  assignedTo: null,
+                  assignees: [],
                   checklist: [],
                   comments: [],
                   createdAt: "2024-01-08T09:00:00Z",
@@ -150,8 +159,7 @@ const useBoardStore = create(
       canAccessBoard: (boardId) => {
         const state = get()
         const board = state.boards.find((b) => b.id === boardId)
-        if (!board || !Array.isArray(board.members)) return false
-        return board.members.some((member) => member.id === state.currentUserId)
+        return board?.members.some((member) => member.id === state.currentUserId) || false
       },
 
       canEditBoard: (boardId) => {
@@ -165,6 +173,7 @@ const useBoardStore = create(
         set((state) => {
           const newBoard = {
             ...board,
+            starred: false,
             createdBy: state.currentUserId,
             members: [
               {
@@ -318,7 +327,7 @@ const useBoardStore = create(
           }
         }),
 
-      addCard: (boardId, listId, cardData) =>
+      addCard: (boardId, listId, cardData, insertIndex = -1) =>
         set((state) => {
           if (!state.canAccessBoard(boardId)) return state
           return {
@@ -330,20 +339,27 @@ const useBoardStore = create(
                       list.id === listId
                         ? {
                             ...list,
-                            cards: [
-                              ...list.cards,
-                              {
+                            cards: (() => {
+                              const newCard = {
                                 id: `card-${Date.now()}`,
                                 title: cardData.title,
                                 description: cardData.description || "",
                                 labels: cardData.labels || [],
                                 dueDate: cardData.dueDate || null,
-                                assignedTo: cardData.assignedTo || null,
+                                assignees: cardData.assignees || [],
                                 checklist: cardData.checklist || [],
                                 comments: [],
                                 createdAt: new Date().toISOString(),
-                              },
-                            ],
+                              }
+
+                              const newCards = [...list.cards]
+                              if (insertIndex >= 0 && insertIndex <= newCards.length) {
+                                newCards.splice(insertIndex, 0, newCard)
+                              } else {
+                                newCards.push(newCard)
+                              }
+                              return newCards
+                            })(),
                           }
                         : list,
                     ),

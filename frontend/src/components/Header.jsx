@@ -1,23 +1,25 @@
 "use client"
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useApp } from "../context/AppContext"
 import { useTheme } from "../context/ThemeContext"
 import useBoardStore from "../store/boardStore"
 import BoardMembers from "./BoardMembers"
-import { Sun, Moon, Search, Bell, Menu, Settings, User, LogOut, Users } from "lucide-react"
+import { Sun, Moon, Search, Menu, User, LogOut, Users } from "lucide-react"
 
 const Header = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { theme, toggleTheme } = useTheme()
   const { user, sidebarCollapsed, toggleSidebar } = useApp()
   const { getCurrentBoard } = useBoardStore()
   const [showUserMenu, setShowUserMenu] = useState(false)
-  const [showNotifications, setShowNotifications] = useState(false)
   const [showBoardMembers, setShowBoardMembers] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
   const currentBoard = getCurrentBoard()
+  const isDashboardHome = location.pathname === "/dashboard"
+  const isBoardView = location.pathname.includes("/dashboard/board/")
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -33,11 +35,14 @@ const Header = () => {
     navigate("/signin")
   }
 
-  const notifications = [
-    { id: 1, message: "New card added to Project Alpha", time: "2 min ago" },
-    { id: 2, message: "Board shared with team", time: "1 hour ago" },
-    { id: 3, message: "Due date reminder", time: "3 hours ago" },
-  ]
+  const getPageTitle = () => {
+    if (isDashboardHome) return "Dashboard"
+    if (location.pathname === "/dashboard/boards") return "All Boards"
+    if (location.pathname === "/dashboard/profile") return "Profile"
+    if (location.pathname === "/dashboard/settings") return "Settings"
+    if (isBoardView && currentBoard) return currentBoard.title
+    return "Trello Clone"
+  }
 
   return (
     <>
@@ -66,21 +71,23 @@ const Header = () => {
             </form>
           </div>
 
-          {/* Center Section - Board Title */}
-          {currentBoard && (
-            <div className="flex items-center space-x-3">
-              <div className={`w-3 h-3 rounded-full ${currentBoard.color || "bg-blue-500"}`} />
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{currentBoard.title}</h1>
-              <button
-                onClick={() => setShowBoardMembers(true)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-sm"
-                title="Board Members"
-              >
-                <Users className="w-4 h-4 text-gray-600 dark:text-slate-300" />
-                <span className="text-gray-700 dark:text-slate-300">{currentBoard.members?.length || 0}</span>
-              </button>
-            </div>
-          )}
+          {/* Center Section - Page Title */}
+          <div className="flex items-center space-x-3">
+            {isBoardView && currentBoard && (
+              <>
+                <div className={`w-3 h-3 rounded-full ${currentBoard.color || "bg-blue-500"}`} />
+                <button
+                  onClick={() => setShowBoardMembers(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors text-sm"
+                  title="Board Members"
+                >
+                  <Users className="w-4 h-4 text-gray-600 dark:text-slate-300" />
+                  <span className="text-gray-700 dark:text-slate-300">{currentBoard.members?.length || 0}</span>
+                </button>
+              </>
+            )}
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{getPageTitle()}</h1>
+          </div>
 
           {/* Right Section */}
           <div className="flex items-center space-x-2">
@@ -94,46 +101,6 @@ const Header = () => {
               ) : (
                 <Sun className="w-5 h-5 text-slate-300" />
               )}
-            </button>
-
-            {/* Notifications */}
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus-ring relative"
-              >
-                <Bell className="w-5 h-5 text-gray-600 dark:text-slate-300" />
-                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
-              </button>
-
-              {showNotifications && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
-                  <div className="absolute right-0 top-12 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg py-2 z-20 w-80 fade-in">
-                    <div className="px-4 py-2 border-b border-gray-200 dark:border-slate-600">
-                      <h3 className="font-medium text-gray-900 dark:text-slate-100">Notifications</h3>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          <p className="text-sm text-gray-900 dark:text-slate-200">{notification.message}</p>
-                          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{notification.time}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <button
-              onClick={() => navigate("/dashboard/settings")}
-              className="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus-ring"
-            >
-              <Settings className="w-5 h-5 text-gray-600 dark:text-slate-300" />
             </button>
 
             {/* User Menu */}
@@ -166,16 +133,6 @@ const Header = () => {
                     >
                       <User className="w-4 h-4" />
                       Profile
-                    </button>
-                    <button
-                      onClick={() => {
-                        navigate("/dashboard/settings")
-                        setShowUserMenu(false)
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
-                    >
-                      <Settings className="w-4 h-4" />
-                      Settings
                     </button>
                     <hr className="my-2 border-gray-200 dark:border-slate-600" />
                     <button

@@ -1,7 +1,7 @@
 "use client"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Calendar, CheckSquare, MessageCircle, Clock } from "lucide-react"
+import { Calendar, CheckSquare, MessageCircle, Clock, Users } from "lucide-react"
 import { getLabelById } from "../utils/labels"
 import useBoardStore from "../store/boardStore"
 
@@ -33,8 +33,8 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
   const completedTasks = card.checklist?.filter((item) => item.completed).length || 0
   const totalTasks = card.checklist?.length || 0
 
-  // Find assigned member
-  const assignedMember = board?.members.find((member) => member.id === card.assignedTo)
+  // Find assigned members
+  const assignedMembers = board?.members.filter((member) => card.assignees?.includes(member.id)) || []
 
   return (
     <div
@@ -78,15 +78,31 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
         </p>
       )}
 
-      {/* Assigned Member */}
-      {assignedMember && (
+      {/* Assigned Members */}
+      {assignedMembers.length > 0 && (
         <div className="flex items-center gap-2 mb-3 p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
-          <img
-            src={assignedMember.avatar || "/placeholder.svg"}
-            alt={assignedMember.name}
-            className="w-6 h-6 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
-          />
-          <span className="text-xs font-medium text-gray-700 dark:text-slate-300">{assignedMember.name}</span>
+          <Users className="w-3 h-3 text-gray-500 dark:text-slate-400" />
+          <div className="flex -space-x-1">
+            {assignedMembers.slice(0, 3).map((member) => (
+              <img
+                key={member.id}
+                src={member.avatar || "/placeholder.svg"}
+                alt={member.name}
+                className="w-5 h-5 rounded-full ring-2 ring-white dark:ring-slate-700 hover:z-10 transition-transform hover:scale-110"
+                title={member.name}
+              />
+            ))}
+            {assignedMembers.length > 3 && (
+              <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-slate-600 ring-2 ring-white dark:ring-slate-700 flex items-center justify-center">
+                <span className="text-xs font-medium text-gray-600 dark:text-slate-300">
+                  +{assignedMembers.length - 3}
+                </span>
+              </div>
+            )}
+          </div>
+          <span className="text-xs text-gray-600 dark:text-slate-400 ml-1">
+            {assignedMembers.length === 1 ? assignedMembers[0].name : `${assignedMembers.length} members`}
+          </span>
         </div>
       )}
 

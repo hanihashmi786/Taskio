@@ -9,7 +9,6 @@ const BoardCreationModal = ({ onClose }) => {
     title: "",
     description: "",
     color: "bg-blue-500",
-    icon: "📋",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -23,8 +22,6 @@ const BoardCreationModal = ({ onClose }) => {
     { value: "bg-indigo-500", label: "Indigo", preview: "bg-indigo-500" },
     { value: "bg-gray-500", label: "Gray", preview: "bg-gray-500" },
   ]
-
-  const iconOptions = ["📋", "🚀", "💼", "📊", "🎯", "⚡", "🔥", "💡", "🎨", "🏆", "📈", "🔧"]
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -42,9 +39,11 @@ const BoardCreationModal = ({ onClose }) => {
         title: formData.title.trim(),
         description: formData.description.trim(),
         color: formData.color,
-        icon: formData.icon,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         lists: [],
+        members: [],
+        starred: false,
       }
 
       addBoard(newBoard)
@@ -59,37 +58,41 @@ const BoardCreationModal = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
               <Plus className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-100">Create New Board</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Create New Board</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-slate-400" />
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-400 dark:text-slate-400" />
           </button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Board Preview */}
-          <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
+          <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-4 border border-gray-200 dark:border-slate-700/50">
             <div className="flex items-center gap-3 mb-2">
               <div className={`w-4 h-4 rounded-full ${formData.color}`} />
-              <span className="text-2xl">{formData.icon}</span>
-              <span className="text-lg font-semibold text-slate-100">{formData.title || "Board Title"}</span>
+              <span className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+                {formData.title || "Board Title"}
+              </span>
             </div>
-            <p className="text-sm text-slate-400 ml-7">
+            <p className="text-sm text-gray-600 dark:text-slate-400 ml-7">
               {formData.description || "Board description will appear here"}
             </p>
           </div>
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
               <Type className="w-4 h-4" />
               Board Title *
             </label>
@@ -98,7 +101,7 @@ const BoardCreationModal = ({ onClose }) => {
               value={formData.title}
               onChange={(e) => handleInputChange("title", e.target.value)}
               placeholder="Enter board title..."
-              className="w-full p-4 bg-slate-900/50 border border-slate-600 rounded-lg text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+              className="w-full p-4 bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
               required
               autoFocus
             />
@@ -106,7 +109,7 @@ const BoardCreationModal = ({ onClose }) => {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Description
             </label>
@@ -114,14 +117,14 @@ const BoardCreationModal = ({ onClose }) => {
               value={formData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
               placeholder="Describe what this board is for..."
-              className="w-full p-4 bg-slate-900/50 border border-slate-600 rounded-lg text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none transition-all duration-200"
+              className="w-full p-4 bg-white dark:bg-slate-900/50 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none transition-all duration-200"
               rows={3}
             />
           </div>
 
           {/* Color Selection */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
               <Palette className="w-4 h-4" />
               Board Color
             </label>
@@ -133,62 +136,30 @@ const BoardCreationModal = ({ onClose }) => {
                   onClick={() => handleInputChange("color", color.value)}
                   className={`p-3 rounded-lg border-2 transition-all duration-200 ${
                     formData.color === color.value
-                      ? "border-blue-400 bg-slate-700"
-                      : "border-slate-600 hover:border-slate-500"
+                      ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                      : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500"
                   }`}
                 >
                   <div className={`w-full h-6 rounded ${color.preview} mb-2`} />
-                  <span className="text-xs text-slate-300">{color.label}</span>
+                  <span className="text-xs text-gray-700 dark:text-slate-300">{color.label}</span>
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* Icon Selection */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3">
-              Board Icon
-              <span className="text-xs text-slate-400 ml-2">(Choose an emoji to represent your board)</span>
-            </label>
-            <div className="grid grid-cols-6 gap-2">
-              {iconOptions.map((icon) => (
-                <button
-                  key={icon}
-                  type="button"
-                  onClick={() => handleInputChange("icon", icon)}
-                  className={`p-3 rounded-lg border-2 text-2xl transition-all duration-200 hover:scale-110 ${
-                    formData.icon === icon ? "border-blue-400 bg-slate-700" : "border-slate-600 hover:border-slate-500"
-                  }`}
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
-            <div className="mt-3">
-              <input
-                type="text"
-                value={formData.icon}
-                onChange={(e) => handleInputChange("icon", e.target.value)}
-                placeholder="Or enter custom emoji..."
-                className="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 text-center text-xl"
-                maxLength={2}
-              />
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 pt-6 border-t border-slate-700">
+          <div className="flex gap-4 pt-6 border-t border-gray-200 dark:border-slate-700">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 text-slate-400 hover:text-slate-100 hover:bg-slate-700 rounded-lg transition-colors focus-ring"
+              className="flex-1 px-6 py-3 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500/50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!formData.title.trim() || isSubmitting}
-              className="flex-1 btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 flex items-center justify-center gap-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500/50"
             >
               {isSubmitting ? (
                 <>
