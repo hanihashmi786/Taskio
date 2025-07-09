@@ -58,3 +58,4 @@ backend/kanban/migrations/__init__.py
 backend/kanban/migrations/0002_card_assignees_checklist_checklistitem_comment_label_and_more.py
 backend/kanban/migrations/0001_initial.py
 backend/db.sqlite3
+backend/db.sqlite3
