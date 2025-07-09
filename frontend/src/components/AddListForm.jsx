@@ -1,19 +1,26 @@
 "use client"
 import { useState } from "react"
 import { X, Plus } from "lucide-react"
-import useBoardStore from "../store/boardStore"
+import useListStore from "../store/listStore"
 
 const AddListForm = ({ boardId, onCancel, onAdd }) => {
-  const { addList } = useBoardStore()
+  const { addList } = useListStore()
   const [title, setTitle] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (title.trim()) {
-      addList(boardId, title.trim())
+    if (!title.trim()) return
+    setLoading(true)
+    try {
+      await addList({ title: title.trim(), board: boardId })
       setTitle("")
-      onAdd()
+      onAdd && onAdd()
+    } catch (err) {
+      // Optionally, show an error toast
+      console.error("Failed to add list", err)
     }
+    setLoading(false)
   }
 
   const handleKeyDown = (e) => {
@@ -36,11 +43,10 @@ const AddListForm = ({ boardId, onCancel, onAdd }) => {
         />
 
         <div className="flex gap-3">
-          <button type="submit" disabled={!title.trim()} className="btn-primary flex items-center gap-2">
+          <button type="submit" disabled={!title.trim() || loading} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
-            Add List
+            {loading ? "Adding..." : "Add List"}
           </button>
-
           <button
             type="button"
             onClick={onCancel}

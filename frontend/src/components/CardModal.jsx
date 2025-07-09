@@ -1,396 +1,203 @@
-"use client"
-import { useState, useEffect } from "react"
-import { X, Calendar, Tag, CheckSquare, MessageCircle, Plus, Trash2, Send, UserX, Users } from "lucide-react"
-import useBoardStore from "../store/boardStore"
+"use client";
+import { useState, useEffect } from "react";
+import { X, Plus, CheckSquare, MessageCircle, Users } from "lucide-react";
+import LabelSelector from "./LabelSelector";
+import useCardStore from "../store/cardStore";
+import useBoardStore from "../store/boardStore"; // for members
 
-const CardModal = ({ card, onClose }) => {
-  const { updateCard, deleteCard, getCurrentBoard } = useBoardStore()
-  const [formData, setFormData] = useState({
-    title: card.title,
-    description: card.description || "",
-    dueDate: card.dueDate || "",
+const CardModal = ({ card, listId, onClose }) => {
+  const { updateCard, fetchComments, comments, addComment, deleteComment } = useCardStore();
+  const { board } = useBoardStore();
+  const [form, setForm] = useState({
+    ...card,
+    labels: card.labels || [],
     assignees: card.assignees || [],
     checklist: card.checklist || [],
-    comments: card.comments || [],
-  })
-  const [newComment, setNewComment] = useState("")
-  const [newChecklistItem, setNewChecklistItem] = useState("")
-  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false)
-
-  const board = getCurrentBoard()
-  const listId = board?.lists.find((list) => list.cards.some((c) => c.id === card.id))?.id
+  });
+  const [showLabelSel, setShowLabelSel] = useState(false);
+  const [newChecklist, setNewChecklist] = useState("");
+  const [newComment, setNewComment] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const handleEscape = (e) => {
-      if (e.key === "Escape") onClose()
-    }
-    document.addEventListener("keydown", handleEscape)
-    return () => document.removeEventListener("keydown", handleEscape)
-  }, [onClose])
+    fetchComments(card.id);
+  }, [card.id, fetchComments]);
 
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+  const handleChange = (field, value) => {
+    setForm((f) => ({ ...f, [field]: value }));
+  };
 
-  const handleSave = () => {
-    if (board && listId) {
-      updateCard(board.id, listId, card.id, {
-        ...formData,
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        dueDate: formData.dueDate || null,
-      })
-    }
-    onClose()
-  }
-
-  const handleDelete = () => {
-    if (window.confirm("Are you sure you want to delete this card?")) {
-      if (board && listId) {
-        deleteCard(board.id, listId, card.id)
-      }
-      onClose()
-    }
-  }
-
-  const addComment = () => {
-    if (newComment.trim()) {
-      const comment = {
-        id: `comment-${Date.now()}`,
-        text: newComment.trim(),
-        author: "Current User",
-        timestamp: new Date().toISOString(),
-      }
-      handleInputChange("comments", [...formData.comments, comment])
-      setNewComment("")
-    }
-  }
-
-  const handleCommentKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      addComment()
-    }
-  }
-
+  // Checklist
   const addChecklistItem = () => {
-    if (newChecklistItem.trim()) {
-      const item = {
-        id: `check-${Date.now()}`,
-        text: newChecklistItem.trim(),
-        completed: false,
-      }
-      handleInputChange("checklist", [...formData.checklist, item])
-      setNewChecklistItem("")
-    }
-  }
+    if (!newChecklist.trim()) return;
+    handleChange("checklist", [
+      ...(form.checklist || []),
+      { text: newChecklist, completed: false },
+    ]);
+    setNewChecklist("");
+  };
+  const toggleChecklistItem = (idx) => {
+    handleChange("checklist", form.checklist.map((item, i) =>
+      i === idx ? { ...item, completed: !item.completed } : item
+    ));
+  };
+  const removeChecklistItem = (idx) => {
+    handleChange("checklist", form.checklist.filter((_, i) => i !== idx));
+  };
 
-  const toggleChecklistItem = (itemId) => {
-    const updatedChecklist = formData.checklist.map((item) =>
-      item.id === itemId ? { ...item, completed: !item.completed } : item,
-    )
-    handleInputChange("checklist", updatedChecklist)
-  }
+  // Labels
+  const openLabelSel = () => setShowLabelSel(true);
 
-  const removeChecklistItem = (itemId) => {
-    const updatedChecklist = formData.checklist.filter((item) => item.id !== itemId)
-    handleInputChange("checklist", updatedChecklist)
-  }
+  // Assignees
+  const toggleAssignee = (userId) => {
+    handleChange("assignees", form.assignees.includes(userId)
+      ? form.assignees.filter((id) => id !== userId)
+      : [...form.assignees, userId]
+    );
+  };
 
-  const handleAssigneeToggle = (memberId) => {
-    const currentAssignees = formData.assignees || []
-    const isAssigned = currentAssignees.includes(memberId)
+  // Comments
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    await addComment(card.id, { text: newComment });
+    setNewComment("");
+    fetchComments(card.id); // reload
+  };
 
-    if (isAssigned) {
-      handleInputChange(
-        "assignees",
-        currentAssignees.filter((id) => id !== memberId),
-      )
-    } else {
-      handleInputChange("assignees", [...currentAssignees, memberId])
-    }
-  }
-
-  const removeAssignee = (memberId) => {
-    const currentAssignees = formData.assignees || []
-    handleInputChange(
-      "assignees",
-      currentAssignees.filter((id) => id !== memberId),
-    )
-  }
-
-  const completedTasks = formData.checklist.filter((item) => item.completed).length
-  const assignedMembers = board?.members.filter((member) => formData.assignees?.includes(member.id)) || []
+  // Save
+  const handleSave = async () => {
+    setSaving(true);
+    await updateCard(card.id, { ...form });
+    setSaving(false);
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-slate-700">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-              <Tag className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Card Details</h2>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleDelete}
-              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+      <div className="bg-white dark:bg-slate-800 rounded-xl max-w-lg w-full shadow-xl border">
+        <div className="flex justify-between items-center p-4 border-b">
+          <div className="text-xl font-bold">{form.title}</div>
+          <button onClick={onClose}><X className="w-6 h-6" /></button>
         </div>
-
-        <div className="p-6 space-y-6">
-          {/* Title */}
+        <div className="p-4 space-y-4">
+          <input
+            className="w-full border rounded p-2"
+            value={form.title}
+            onChange={(e) => handleChange("title", e.target.value)}
+          />
+          <textarea
+            className="w-full border rounded p-2"
+            value={form.description}
+            onChange={(e) => handleChange("description", e.target.value)}
+            rows={3}
+          />
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Title</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => handleInputChange("title", e.target.value)}
-              className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleInputChange("description", e.target.value)}
-              rows={4}
-              className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Add a more detailed description..."
-            />
-          </div>
-
-          {/* Due Date and Assignees */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                Due Date
-              </label>
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => handleInputChange("dueDate", e.target.value)}
-                className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Assignees ({assignedMembers.length})
-              </label>
-              <div className="relative">
-                <button
-                  onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
-                  className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-left text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add assignees...
-                </button>
-
-                {showAssigneeDropdown && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowAssigneeDropdown(false)} />
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg py-2 z-20 max-h-48 overflow-y-auto">
-                      {board?.members.map((member) => {
-                        const isAssigned = formData.assignees?.includes(member.id)
-                        return (
-                          <button
-                            key={member.id}
-                            onClick={() => handleAssigneeToggle(member.id)}
-                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-3 ${
-                              isAssigned
-                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                                : "text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
-                            }`}
-                          >
-                            <img
-                              src={member.avatar || "/placeholder.svg"}
-                              alt={member.name}
-                              className="w-6 h-6 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
-                            />
-                            <span className="flex-1">{member.name}</span>
-                            {isAssigned && (
-                              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                <div className="w-2 h-2 bg-white rounded-full" />
-                              </div>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </>
-                )}
+            <button
+              type="button"
+              className="btn-secondary mb-2"
+              onClick={openLabelSel}
+            >
+              Edit Labels
+            </button>
+            {form.labels && (
+              <div className="flex gap-2 flex-wrap">
+                {form.labels.map((id) => (
+                  <span key={id} className="bg-blue-200 px-2 rounded text-xs">{id}</span>
+                ))}
               </div>
-
-              {/* Display assigned members */}
-              {assignedMembers.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {assignedMembers.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-700 rounded-lg"
-                    >
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={member.avatar || "/placeholder.svg"}
-                          alt={member.name}
-                          className="w-6 h-6 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
-                        />
-                        <span className="text-sm font-medium text-gray-900 dark:text-slate-100">{member.name}</span>
-                      </div>
-                      <button
-                        onClick={() => removeAssignee(member.id)}
-                        className="p-1 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors"
-                        title="Remove assignee"
-                      >
-                        <UserX className="w-4 h-4 text-gray-500 dark:text-slate-400" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
           </div>
-
           {/* Checklist */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
-                <CheckSquare className="w-4 h-4" />
-                Checklist {formData.checklist.length > 0 && `(${completedTasks}/${formData.checklist.length})`}
-              </label>
-              {formData.checklist.length > 0 && (
-                <div className="w-24 bg-gray-200 dark:bg-slate-600 rounded-full h-2">
-                  <div
-                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${(completedTasks / formData.checklist.length) * 100}%` }}
-                  />
-                </div>
-              )}
+            <div className="font-bold mb-2 flex items-center gap-1">
+              <CheckSquare className="w-4 h-4" /> Checklist
             </div>
-
-            <div className="space-y-2 mb-3">
-              {formData.checklist.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-slate-700 rounded-lg">
+            <ul className="space-y-1">
+              {form.checklist.map((item, idx) => (
+                <li key={idx} className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={item.completed}
-                    onChange={() => toggleChecklistItem(item.id)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    onChange={() => toggleChecklistItem(idx)}
                   />
-                  <span
-                    className={`flex-1 ${
-                      item.completed
-                        ? "line-through text-gray-500 dark:text-slate-400"
-                        : "text-gray-900 dark:text-slate-100"
-                    }`}
-                  >
-                    {item.text}
-                  </span>
-                  <button
-                    onClick={() => removeChecklistItem(item.id)}
-                    className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
+                  <span className={item.completed ? "line-through text-gray-400" : ""}>{item.text}</span>
+                  <button onClick={() => removeChecklistItem(idx)} className="text-red-500"><X /></button>
+                </li>
               ))}
-            </div>
-
-            <div className="flex gap-2">
+            </ul>
+            <div className="flex gap-2 mt-1">
               <input
-                type="text"
-                value={newChecklistItem}
-                onChange={(e) => setNewChecklistItem(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addChecklistItem()}
-                placeholder="Add checklist item..."
-                className="flex-1 p-2 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 border rounded p-1"
+                value={newChecklist}
+                onChange={(e) => setNewChecklist(e.target.value)}
+                placeholder="New checklist item"
               />
-              <button
-                onClick={addChecklistItem}
-                disabled={!newChecklistItem.trim()}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <button onClick={addChecklistItem} className="btn-primary">Add</button>
             </div>
           </div>
-
+          {/* Assignees */}
+          <div>
+            <div className="font-bold mb-2 flex items-center gap-1">
+              <Users className="w-4 h-4" /> Assignees
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {board?.members?.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => toggleAssignee(u.id)}
+                  className={`px-2 py-1 rounded ${form.assignees.includes(u.id) ? "bg-blue-500 text-white" : "bg-gray-200"}`}
+                >
+                  {u.username}
+                </button>
+              ))}
+            </div>
+          </div>
           {/* Comments */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" />
-              Comments ({formData.comments.length})
-            </label>
-
-            <div className="space-y-3 mb-4">
-              {formData.comments.map((comment) => (
-                <div key={comment.id} className="p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-gray-900 dark:text-slate-100 text-sm">{comment.author}</span>
-                    <span className="text-xs text-gray-500 dark:text-slate-400">
-                      {new Date(comment.timestamp).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="text-gray-700 dark:text-slate-300 text-sm">{comment.text}</p>
+            <div className="font-bold mb-2 flex items-center gap-1">
+              <MessageCircle className="w-4 h-4" /> Comments
+            </div>
+            <div className="space-y-2">
+              {(comments[card.id] || []).map((c) => (
+                <div key={c.id} className="bg-gray-100 p-2 rounded">
+                  <span className="font-bold">{c.author?.username || "User"}</span>: {c.text}
+                  <button
+                    className="text-xs text-red-400 ml-2"
+                    onClick={() => deleteComment(card.id, c.id)}
+                  >Delete</button>
                 </div>
               ))}
             </div>
-
-            <div className="flex gap-2">
-              <textarea
+            <div className="flex gap-2 mt-2">
+              <input
+                className="flex-1 border rounded p-2"
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                onKeyDown={handleCommentKeyPress}
-                placeholder="Write a comment..."
-                className="flex-1 p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                rows={2}
+                placeholder="Add a comment"
               />
-              <button
-                onClick={addComment}
-                disabled={!newComment.trim()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+              <button onClick={handleAddComment} className="btn-primary">Send</button>
             </div>
           </div>
+          <div className="flex justify-end mt-4 gap-2">
+            <button className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button className="btn-primary" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
         </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-slate-700">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Save Changes
-          </button>
-        </div>
+        {showLabelSel && (
+          <LabelSelector
+            selectedLabels={form.labels}
+            onLabelsChange={(labels) => {
+              handleChange("labels", labels);
+              setShowLabelSel(false);
+            }}
+            onClose={() => setShowLabelSel(false)}
+          />
+        )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default CardModal
+export default CardModal;

@@ -1,31 +1,37 @@
-"use client"
-import { useState } from "react"
-import { useDroppable } from "@dnd-kit/core"
-import { useSortable } from "@dnd-kit/sortable"
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
-import { MoreHorizontal, Plus, Trash2, GripVertical } from "lucide-react"
-import useBoardStore from "../store/boardStore"
-import KanbanCard from "./KanbanCard"
-import AddCardForm from "./AddCardForm"
+"use client";
+import { useEffect, useState } from "react";
+import { useDroppable } from "@dnd-kit/core";
+import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { MoreHorizontal, Plus, Trash2, GripVertical, Edit3, Check, X } from "lucide-react";
+import useListStore from "../store/listStore";
+import useCardStore from "../store/cardStore";
+import KanbanCard from "./KanbanCard";
+import AddCardForm from "./AddCardForm";
 
 const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
-  const { updateList, deleteList, canAccessBoard } = useBoardStore()
-  const [isEditing, setIsEditing] = useState(false)
-  const [title, setTitle] = useState(list.title)
-  const [showAddCard, setShowAddCard] = useState(false)
-  const [addCardIndex, setAddCardIndex] = useState(-1)
-  const [showMenu, setShowMenu] = useState(false)
+  // List editing logic
+  const { updateList, deleteList } = useListStore();
+  const [isEditing, setIsEditing] = useState(false);
+  const [title, setTitle] = useState(list.title);
+  const [showAddCard, setShowAddCard] = useState(false);
+  const [addCardIndex, setAddCardIndex] = useState(-1);
+  const [showMenu, setShowMenu] = useState(false);
 
-  const hasAccess = canAccessBoard(boardId)
+  // Cards from card store
+  const { cardsByList, fetchCards, setCardsForList, updateCard } = useCardStore();
+  const cards = cardsByList[list.id] || [];
 
+  // Fetch cards for this list on mount or list.id change
+  useEffect(() => {
+    fetchCards(list.id);
+  }, [list.id, fetchCards]);
+
+  // DND kit logic for list reordering
   const { setNodeRef: setDroppableRef } = useDroppable({
     id: list.id,
-    data: {
-      type: "list",
-      list,
-    },
-  })
+    data: { type: "list", list },
+  });
 
   const {
     attributes,
@@ -36,55 +42,66 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
     isDragging,
   } = useSortable({
     id: list.id,
-    data: {
-      type: "list",
-      list,
-    },
-  })
+    data: { type: "list", list },
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-  }
+  };
 
-  const handleTitleSubmit = () => {
-    if (title.trim() && title !== list.title && hasAccess) {
-      updateList(boardId, list.id, { title: title.trim() })
+  // -- Card Drag & Drop logic --
+  const handleCardDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = cards.findIndex((c) => c.id === active.id);
+    const newIndex = cards.findIndex((c) => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+    // Move in-memory
+    const newCards = [...cards];
+    const [moved] = newCards.splice(oldIndex, 1);
+    newCards.splice(newIndex, 0, moved);
+
+    // Update order
+    const ordered = newCards.map((card, idx) => ({ ...card, order: idx }));
+    setCardsForList(list.id, ordered);
+
+    // Persist order to backend
+    await Promise.all(
+      ordered.map((card) => updateCard(card.id, { order: card.order }))
+    );
+  };
+
+  // -- List Title Edit/Delete Logic (same as before) --
+  const handleEditTitle = async () => {
+    if (title.trim() && title !== list.title) {
+      await updateList(list.id, { title: title.trim() });
     }
-    setIsEditing(false)
-  }
+    setIsEditing(false);
+  };
 
   const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      handleTitleSubmit()
-    } else if (e.key === "Escape") {
-      setTitle(list.title)
-      setIsEditing(false)
-    }
-  }
+    if (e.key === "Enter") handleEditTitle();
+    else if (e.key === "Escape") setIsEditing(false);
+  };
 
-  const handleDeleteList = () => {
-    if (window.confirm("Are you sure you want to delete this list?") && hasAccess) {
-      deleteList(boardId, list.id)
+  const handleDeleteList = async () => {
+    if (window.confirm("Are you sure you want to delete this list?")) {
+      await deleteList(list.id);
+      setShowMenu(false);
     }
-    setShowMenu(false)
-  }
+  };
 
   const handleAddCard = (index = -1) => {
-    if (hasAccess) {
-      setAddCardIndex(index)
-      setShowAddCard(true)
-    }
-  }
-
+    setAddCardIndex(index);
+    setShowAddCard(true);
+  };
   const handleAddCardComplete = () => {
-    setShowAddCard(false)
-    setAddCardIndex(-1)
-  }
-
-  if (!hasAccess) {
-    return null
-  }
+    setShowAddCard(false);
+    setAddCardIndex(-1);
+  };
 
   return (
     <div
@@ -99,31 +116,38 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
         <div className="p-4 border-b border-gray-200 dark:border-slate-700/30">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 flex-1">
-              <button
-                {...attributes}
-                {...listeners}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded cursor-grab active:cursor-grabbing transition-colors"
-                title="Drag to reorder list"
-              >
+              <button {...attributes} {...listeners} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded cursor-grab active:cursor-grabbing transition-colors" title="Drag to reorder list">
                 <GripVertical className="w-4 h-4 text-gray-400 dark:text-slate-400" />
               </button>
 
               {isEditing ? (
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onBlur={handleTitleSubmit}
-                  onKeyDown={handleKeyPress}
-                  className="flex-1 text-base font-semibold bg-transparent border-none outline-none text-gray-900 dark:text-slate-100 focus-ring rounded px-2 py-1 -mx-2 -my-1"
-                  autoFocus
-                />
+                <div className="flex items-center flex-1 gap-2">
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onBlur={handleEditTitle}
+                    onKeyDown={handleKeyPress}
+                    className="flex-1 text-base font-semibold bg-transparent border-none outline-none text-gray-900 dark:text-slate-100 focus-ring rounded px-2 py-1 -mx-2 -my-1"
+                    autoFocus
+                  />
+                  <button onClick={handleEditTitle}>
+                    <Check className="w-4 h-4 text-green-500" />
+                  </button>
+                  <button onClick={() => setIsEditing(false)}>
+                    <X className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
               ) : (
                 <h3
                   className="flex-1 text-base font-semibold text-gray-900 dark:text-slate-100 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700/50 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors"
                   onClick={() => setIsEditing(true)}
+                  title="Rename list"
                 >
                   {list.title}
+                  <button className="ml-2 p-1 align-middle" onClick={() => setIsEditing(true)}>
+                    <Edit3 className="w-4 h-4 inline text-gray-300 hover:text-blue-500 transition-colors" />
+                  </button>
                 </h3>
               )}
             </div>
@@ -135,7 +159,6 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
               >
                 <MoreHorizontal className="w-4 h-4 text-gray-400 dark:text-slate-400" />
               </button>
-
               {showMenu && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
@@ -152,9 +175,8 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
               )}
             </div>
           </div>
-
           <div className="flex items-center justify-between text-sm text-gray-500 dark:text-slate-400">
-            <span className="font-medium">{list.cards.length} cards</span>
+            <span className="font-medium">{cards.length} cards</span>
           </div>
         </div>
 
@@ -163,8 +185,8 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
           ref={setDroppableRef}
           className="flex-1 p-3 space-y-3 min-h-[150px] max-h-[calc(100vh-350px)] overflow-y-auto custom-scrollbar"
         >
-          <SortableContext items={list.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-            {list.cards.length === 0 && !showAddCard ? (
+          <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+            {cards.length === 0 && !showAddCard ? (
               <div className="text-center py-8 text-gray-400 dark:text-slate-400">
                 <div className="w-10 h-10 bg-gray-100 dark:bg-slate-700/20 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <Plus className="w-5 h-5" />
@@ -183,19 +205,16 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
                 {showAddCard && addCardIndex === 0 && (
                   <div className="mb-3">
                     <AddCardForm
-                      boardId={boardId}
                       listId={list.id}
-                      insertIndex={0}
                       onCancel={handleAddCardComplete}
                       onAdd={handleAddCardComplete}
                     />
                   </div>
                 )}
 
-                {list.cards.map((card, index) => (
+                {cards.map((card, index) => (
                   <div key={card.id}>
                     <KanbanCard card={card} onClick={() => onCardClick(card)} />
-
                     {/* Add card button between cards */}
                     <div className="flex justify-center py-2 opacity-0 hover:opacity-100 transition-opacity group">
                       <button
@@ -206,14 +225,11 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
                         <Plus className="w-4 h-4 text-gray-400 dark:text-slate-400 group-hover:text-blue-500 dark:group-hover:text-blue-400" />
                       </button>
                     </div>
-
                     {/* Add card form at specific position */}
                     {showAddCard && addCardIndex === index + 1 && (
                       <div className="my-3">
                         <AddCardForm
-                          boardId={boardId}
                           listId={list.id}
-                          insertIndex={index + 1}
                           onCancel={handleAddCardComplete}
                           onAdd={handleAddCardComplete}
                         />
@@ -221,14 +237,11 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
                     )}
                   </div>
                 ))}
-
                 {/* Add card at end */}
                 {showAddCard && addCardIndex === -1 && (
                   <div className="mt-3">
                     <AddCardForm
-                      boardId={boardId}
                       listId={list.id}
-                      insertIndex={-1}
                       onCancel={handleAddCardComplete}
                       onAdd={handleAddCardComplete}
                     />
@@ -238,7 +251,6 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
             )}
           </SortableContext>
         </div>
-
         {/* Add Card at Bottom */}
         {!showAddCard && (
           <div className="p-3 border-t border-gray-200 dark:border-slate-700/30">
@@ -253,7 +265,7 @@ const KanbanList = ({ list, boardId, onCardClick, ...props }) => {
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default KanbanList
+export default KanbanList;
