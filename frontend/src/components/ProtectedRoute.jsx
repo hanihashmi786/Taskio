@@ -1,13 +1,12 @@
-import { Navigate } from "react-router-dom"
+import { Navigate } from "react-router-dom";
 
 const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = localStorage.getItem("trello-auth") === "true"
-
-  if (!isAuthenticated) {
-    return <Navigate to="/signin" replace />
+  const accessToken = localStorage.getItem("access_token");
+  // If you want to double-check user object, you can add extra check here
+  if (!accessToken) {
+    return <Navigate to="/signin" replace />;
   }
+  return children;
+};
 
-  return children
-}
-
-export default ProtectedRoute
+export default ProtectedRoute;

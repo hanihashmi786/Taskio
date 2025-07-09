@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, User, UserPlus } from "lucide-react";
-import axios from "axios";
+import { signup } from "../../api/auth";  // <-- Use the centralized API function
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -18,7 +18,6 @@ const Signup = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // --- THIS WAS THE MISSING FUNCTION ---
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -31,7 +30,6 @@ const Signup = () => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    console.log("Submitting signup form with:", formData);
 
     // Validation
     if (!formData.firstName.trim()) {
@@ -56,7 +54,7 @@ const Signup = () => {
     }
 
     try {
-      // Send payload using snake_case for backend compatibility
+      // Prepare payload for backend (snake_case)
       const payload = {
         first_name: formData.firstName,
         last_name: formData.lastName,
@@ -64,23 +62,15 @@ const Signup = () => {
         password: formData.password,
         confirmPassword: formData.confirmPassword,
       };
-      const response = await axios.post(
-        "http://127.0.0.1:8000/api/accounts/signup/",
-        payload
-      );
-      console.log("Signup success:", response.data);
-      // Optionally show a success message here!
+      await signup(payload);
       navigate("/signin");
     } catch (err) {
-      console.error("Signup error:", err);
       if (err.response) {
-        console.error("Backend responded:", err.response.data);
         if (err.response.data && err.response.data.error) {
           setError(err.response.data.error);
         } else if (typeof err.response.data === "string") {
           setError(err.response.data);
         } else if (typeof err.response.data === "object") {
-          // Show first backend error
           const firstErrorKey = Object.keys(err.response.data)[0];
           setError(
             (firstErrorKey && err.response.data[firstErrorKey]) ||
@@ -147,7 +137,6 @@ const Signup = () => {
                     />
                   </div>
                 </div>
-
                 <div>
                   <label
                     htmlFor="lastName"
@@ -301,7 +290,7 @@ const Signup = () => {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  <UserPlus className="w-5 h-5 mr-2" />
+                  <UserPlus className="w-5 w-5 mr-2" />
                   Create account
                 </>
               )}
@@ -320,8 +309,6 @@ const Signup = () => {
             </div>
           </form>
         </div>
-
-        {/* Additional Info */}
         <div className="mt-6 text-center">
           <p className="text-xs text-gray-500 dark:text-slate-400">
             By creating an account, you'll be able to organize your projects, collaborate with your team, and boost your

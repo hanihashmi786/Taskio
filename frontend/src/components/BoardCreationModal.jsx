@@ -1,27 +1,38 @@
 "use client"
-import { useState } from "react"
-import { X, Plus, Palette, Type, FileText } from "lucide-react"
+import { useEffect, useState } from "react"
+import { X, Plus, Palette, Type, FileText, Edit3 } from "lucide-react"
 import useBoardStore from "../store/boardStore"
 
-const BoardCreationModal = ({ onClose }) => {
-  const { addBoard, setCurrentBoard } = useBoardStore()
+const colorOptions = [
+  { value: "bg-blue-500", label: "Blue", preview: "bg-blue-500" },
+  { value: "bg-green-500", label: "Green", preview: "bg-green-500" },
+  { value: "bg-purple-500", label: "Purple", preview: "bg-purple-500" },
+  { value: "bg-red-500", label: "Red", preview: "bg-red-500" },
+  { value: "bg-yellow-500", label: "Yellow", preview: "bg-yellow-500" },
+  { value: "bg-pink-500", label: "Pink", preview: "bg-pink-500" },
+  { value: "bg-indigo-500", label: "Indigo", preview: "bg-indigo-500" },
+  { value: "bg-gray-500", label: "Gray", preview: "bg-gray-500" },
+]
+
+const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpdated }) => {
+  const { addBoard, editBoard, setCurrentBoard } = useBoardStore()
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     color: "bg-blue-500",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const isEditMode = !!board
 
-  const colorOptions = [
-    { value: "bg-blue-500", label: "Blue", preview: "bg-blue-500" },
-    { value: "bg-green-500", label: "Green", preview: "bg-green-500" },
-    { value: "bg-purple-500", label: "Purple", preview: "bg-purple-500" },
-    { value: "bg-red-500", label: "Red", preview: "bg-red-500" },
-    { value: "bg-yellow-500", label: "Yellow", preview: "bg-yellow-500" },
-    { value: "bg-pink-500", label: "Pink", preview: "bg-pink-500" },
-    { value: "bg-indigo-500", label: "Indigo", preview: "bg-indigo-500" },
-    { value: "bg-gray-500", label: "Gray", preview: "bg-gray-500" },
-  ]
+  useEffect(() => {
+    if (isEditMode) {
+      setFormData({
+        title: board.title || "",
+        description: board.description || "",
+        color: board.color || "bg-blue-500",
+      })
+    }
+  }, [isEditMode, board])
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -30,27 +41,27 @@ const BoardCreationModal = ({ onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.title.trim()) return
-
     setIsSubmitting(true)
-
     try {
-      const newBoard = {
-        id: `board-${Date.now()}`,
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        color: formData.color,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lists: [],
-        members: [],
-        starred: false,
+      if (isEditMode) {
+        const updated = await editBoard(board.id, {
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          color: formData.color,
+        })
+        if (onBoardUpdated) onBoardUpdated(updated)
+      } else {
+        const created = await addBoard({
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          color: formData.color,
+        })
+        setCurrentBoard(created.id)
+        if (onBoardCreated) onBoardCreated(created)
       }
-
-      addBoard(newBoard)
-      setCurrentBoard(newBoard.id)
       onClose()
     } catch (error) {
-      console.error("Error creating board:", error)
+      console.error(isEditMode ? "Error editing board:" : "Error creating board:", error)
     } finally {
       setIsSubmitting(false)
     }
@@ -63,9 +74,11 @@ const BoardCreationModal = ({ onClose }) => {
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-              <Plus className="w-5 h-5 text-white" />
+              {isEditMode ? <Edit3 className="w-5 h-5 text-white" /> : <Plus className="w-5 h-5 text-white" />}
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Create New Board</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+              {isEditMode ? "Edit Board" : "Create New Board"}
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -164,12 +177,12 @@ const BoardCreationModal = ({ onClose }) => {
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Creating...
+                  {isEditMode ? "Saving..." : "Creating..."}
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4" />
-                  Create Board
+                  {isEditMode ? <Edit3 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  {isEditMode ? "Save Changes" : "Create Board"}
                 </>
               )}
             </button>

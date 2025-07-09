@@ -1,56 +1,62 @@
-"use client"
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Eye, EyeOff, Mail, Lock, LogIn } from "lucide-react"
+"use client";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Mail, Lock, LogIn } from "lucide-react";
+import { login } from "../../api/auth";  // <-- Use the centralized API function
 
 const Signin = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-  })
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const navigate = useNavigate()
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
-    })
-    setError("")
-  }
+    });
+    setError("");
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
 
     try {
-      // Mock authentication - replace with real API call
-      if (formData.email === "demo@example.com" && formData.password === "password") {
-        localStorage.setItem("access_token", "mock-jwt-token")
-        localStorage.setItem(
-          "trello-auth",
-          JSON.stringify({
-            user: {
-              id: "1",
-              name: "Demo User",
-              email: formData.email,
-              avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
-            },
-          }),
-        )
-        navigate("/dashboard")
-      } else {
-        setError("Invalid email or password. Try demo@example.com / password")
+      const response = await login({
+        email: formData.email,
+        password: formData.password,
+      });
+      // Save tokens and user data
+      if (response.data.access_token) {
+        localStorage.setItem("access_token", response.data.access_token);
       }
+      if (response.data.refresh_token) {
+        localStorage.setItem("refresh_token", response.data.refresh_token);
+      }
+      if (response.data.user) {
+        localStorage.setItem("trello-auth", JSON.stringify({ user: response.data.user }));
+      }
+      navigate("/dashboard");
     } catch (err) {
-      setError("An error occurred. Please try again.")
+      if (err.response && err.response.data) {
+        setError(
+          err.response.data.error ||
+          err.response.data.detail ||
+          "Login failed. Please check your credentials."
+        );
+      } else {
+        setError("An error occurred. Please try again.");
+      }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-12 px-4 sm:px-6 lg:px-8">
@@ -142,7 +148,6 @@ const Signin = () => {
                   Remember me
                 </label>
               </div>
-
               <div className="text-sm">
                 <Link
                   to="/forgot-password"
@@ -181,31 +186,9 @@ const Signin = () => {
             </div>
           </form>
         </div>
-
-        {/* Demo credentials card */}
-        <div className="mt-6 bg-blue-50 dark:bg-blue-500/10 rounded-xl p-4 border border-blue-200 dark:border-blue-500/20">
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-500/20 rounded-lg flex items-center justify-center">
-                <LogIn className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Demo Credentials</h3>
-              <div className="text-sm text-blue-700 dark:text-blue-200 space-y-1">
-                <p>
-                  <strong>Email:</strong> demo@example.com
-                </p>
-                <p>
-                  <strong>Password:</strong> password
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Signin
+export default Signin;

@@ -11,7 +11,7 @@ const Header = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
-  const { user, sidebarCollapsed, toggleSidebar } = useApp()
+  const { user: contextUser, sidebarCollapsed, toggleSidebar } = useApp()
   const { getCurrentBoard } = useBoardStore()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showBoardMembers, setShowBoardMembers] = useState(false)
@@ -20,6 +20,26 @@ const Header = () => {
   const currentBoard = getCurrentBoard()
   const isDashboardHome = location.pathname === "/dashboard"
   const isBoardView = location.pathname.includes("/dashboard/board/")
+
+  // --- Always get the freshest user info (context + localStorage fallback) ---
+  let user = contextUser || {}
+  try {
+    const storedAuth = localStorage.getItem("trello-auth")
+    if (storedAuth) {
+      const parsed = JSON.parse(storedAuth).user
+      if (parsed) {
+        user = { ...user, ...parsed }
+      }
+    }
+  } catch (e) {}
+
+  // Clean up first/last name
+  const displayName =
+    (user.first_name || user.last_name
+      ? `${(user.first_name || "").trim()} ${(user.last_name || "").trim()}`.trim()
+      : user.name || user.username || "User") || "User"
+
+  const displayEmail = user.email || "No email"
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -91,7 +111,6 @@ const Header = () => {
 
           {/* Right Section */}
           <div className="flex items-center space-x-2">
-
             {/* User Menu */}
             <div className="relative">
               <button
@@ -100,12 +119,16 @@ const Header = () => {
               >
                 <img
                   src={user.avatar || "/placeholder.svg"}
-                  alt={user.name || user.username || "User"}
+                  alt={displayName}
                   className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
                 />
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{user.name || user.username || "User"}</p>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">{user.email || "No email"}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                    {displayName}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    {displayEmail}
+                  </p>
                 </div>
               </button>
 

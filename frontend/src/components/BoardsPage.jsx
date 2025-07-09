@@ -1,18 +1,29 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import useBoardStore from "../store/boardStore"
 import BoardCreationModal from "./BoardCreationModal"
 import { Plus, Calendar, Users, Star, MoreHorizontal, Trash2, Edit3, Search, Grid, List } from "lucide-react"
 
 const BoardsPage = () => {
-  const { getUserBoards, setCurrentBoard, deleteBoard, canEditBoard } = useBoardStore()
+  const {
+    getUserBoards,
+    setCurrentBoard,
+    deleteBoard,
+    addBoard,
+    editBoard,
+    fetchBoards,
+    canEditBoard,
+  } = useBoardStore()
   const [showCreateBoard, setShowCreateBoard] = useState(false)
   const [showBoardOptions, setShowBoardOptions] = useState(null)
+  const [editBoardState, setEditBoard] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterBy, setFilterBy] = useState("all") // all, starred, recent
   const [viewMode, setViewMode] = useState("grid") // grid, list
   const navigate = useNavigate()
+
+  useEffect(() => { fetchBoards() }, [fetchBoards])
 
   const boards = getUserBoards()
 
@@ -27,11 +38,21 @@ const BoardsPage = () => {
     setShowBoardOptions(showBoardOptions === board.id ? null : board.id)
   }
 
-  const handleDeleteBoard = (boardId) => {
+  const handleDeleteBoard = async (boardId) => {
     if (window.confirm("Are you sure you want to delete this board? This action cannot be undone.")) {
-      deleteBoard(boardId)
+      await deleteBoard(boardId)
       setShowBoardOptions(null)
     }
+  }
+
+  const handleBoardCreated = () => {
+    setShowCreateBoard(false)
+    fetchBoards()
+  }
+
+  const handleBoardUpdated = () => {
+    setEditBoard(null)
+    fetchBoards()
   }
 
   const formatDate = (dateString) => {
@@ -43,14 +64,14 @@ const BoardsPage = () => {
   }
 
   const getCardCount = (board) => {
-    return board.lists.reduce((total, list) => total + list.cards.length, 0)
+    return board.lists?.reduce((total, list) => total + (list.cards?.length || 0), 0) || 0
   }
 
   // Filter and search boards
   const filteredBoards = boards.filter((board) => {
     const matchesSearch =
       board.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      board.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      (board.description?.toLowerCase().includes(searchTerm.toLowerCase()) || "")
 
     if (!matchesSearch) return false
 
@@ -144,7 +165,6 @@ const BoardsPage = () => {
                   </div>
                 </div>
               </div>
-
               <div className="bg-white dark:bg-slate-800 rounded-xl p-4 card-shadow border border-gray-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <div>
@@ -158,7 +178,6 @@ const BoardsPage = () => {
                   </div>
                 </div>
               </div>
-
               <div className="bg-white dark:bg-slate-800 rounded-xl p-4 card-shadow border border-gray-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <div>
@@ -170,7 +189,6 @@ const BoardsPage = () => {
                   </div>
                 </div>
               </div>
-
               <div className="bg-white dark:bg-slate-800 rounded-xl p-4 card-shadow border border-gray-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <div>
@@ -241,7 +259,7 @@ const BoardsPage = () => {
                       }`}
                     >
                       <div className={`flex items-center ${viewMode === "list" ? "gap-4 flex-1" : "space-x-3 mb-4"}`}>
-                        <div className={`w-4 h-4 rounded-full ${board.color}`} />
+                        <div className={`w-4 h-4 rounded-full`} style={{background: board.color || "#3498db"}} />
                         <span className="text-2xl">{board.icon}</span>
                         {board.starred && <Star className="w-4 h-4 text-yellow-500" />}
                         {viewMode === "list" && (
@@ -268,9 +286,11 @@ const BoardsPage = () => {
                       )}
 
                       <div
-                        className={`flex items-center text-xs text-gray-500 dark:text-slate-400 ${viewMode === "list" ? "gap-6" : "justify-between mb-2"}`}
+                        className={`flex items-center text-xs text-gray-500 dark:text-slate-400 ${
+                          viewMode === "list" ? "gap-6" : "justify-between mb-2"
+                        }`}
                       >
-                        <span>{board.lists.length} lists</span>
+                        <span>{board.lists?.length || 0} lists</span>
                         <span>{getCardCount(board)} cards</span>
                         <span>{board.members?.length || 0} members</span>
                       </div>
@@ -284,7 +304,9 @@ const BoardsPage = () => {
 
                     {canEditBoard(board.id) && (
                       <button
-                        onClick={(e) => handleBoardOptions(e, board)}
+                        onClick={(e) => {
+                          handleBoardOptions(e, board)
+                        }}
                         className={`absolute opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-all focus-ring ${
                           viewMode === "list" ? "right-4 top-1/2 transform -translate-y-1/2" : "top-4 right-4"
                         }`}
@@ -299,6 +321,7 @@ const BoardsPage = () => {
                         <div className="absolute right-4 top-12 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg py-2 z-20 min-w-[140px] fade-in">
                           <button
                             onClick={() => {
+                              setEditBoard(board)
                               setShowBoardOptions(null)
                             }}
                             className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
@@ -337,7 +360,14 @@ const BoardsPage = () => {
         </div>
       </div>
 
-      {showCreateBoard && <BoardCreationModal onClose={() => setShowCreateBoard(false)} />}
+      {(showCreateBoard || editBoardState) && (
+        <BoardCreationModal
+          onClose={() => { setShowCreateBoard(false); setEditBoard(null); }}
+          board={editBoardState}
+          onBoardCreated={handleBoardCreated}
+          onBoardUpdated={handleBoardUpdated}
+        />
+      )}
     </>
   )
 }
