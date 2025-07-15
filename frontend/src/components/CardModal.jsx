@@ -414,8 +414,8 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         Due Date
                       </label>
                       <input
-                        type="datetime-local"
-                        value={formData.due_date || ""}
+                        type="date"
+                        value={formData.due_date ? formData.due_date.slice(0, 10) : ""}
                         onChange={(e) => handleInputChange("due_date", e.target.value)}
                         className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                       />

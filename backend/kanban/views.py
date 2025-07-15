@@ -65,7 +65,11 @@ class ListAPI(APIView):
 class CardAPI(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request, id=None):
+        if id is not None:
+            card = get_object_or_404(Card, id=id)
+            serializer = CardSerializer(card)
+            return Response(serializer.data)
         list_id = request.query_params.get('list')
         cards = Card.objects.filter(list_id=list_id) if list_id else Card.objects.all()
         serializer = CardSerializer(cards, many=True)
@@ -78,8 +82,8 @@ class CardAPI(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request):
-        card_id = request.data.get("id")
+    def put(self, request, id=None):
+        card_id = id or request.data.get("id")
         card = get_object_or_404(Card, id=card_id)
         serializer = CardSerializer(card, data=request.data, partial=True)
         if serializer.is_valid():
@@ -87,8 +91,8 @@ class CardAPI(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def patch(self, request):
-        card_id = request.data.get("id")
+    def patch(self, request, id=None):
+        card_id = id or request.data.get("id")
         card = get_object_or_404(Card, id=card_id)
         serializer = CardSerializer(card, data=request.data, partial=True)
         if serializer.is_valid():
@@ -96,8 +100,8 @@ class CardAPI(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request):
-        card_id = request.data.get('id') or request.query_params.get('id')
+    def delete(self, request, id=None):
+        card_id = id or request.data.get('id') or request.query_params.get('id')
         if not card_id:
             return Response({'detail': 'Card id required.'}, status=status.HTTP_400_BAD_REQUEST)
         card = get_object_or_404(Card, pk=card_id)

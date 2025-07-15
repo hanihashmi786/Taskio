@@ -5,6 +5,7 @@ import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortabl
 import { Plus } from "lucide-react"
 import useBoardStore from "../store/boardStore"
 import useListStore from "../store/listStore"
+import useCardStore from "../store/cardStore"
 import KanbanList from "./KanbanList"
 import KanbanCard from "./KanbanCard"
 import AddListForm from "./AddListForm"
@@ -16,6 +17,7 @@ const KanbanBoard = ({ onCardClick }) => {
 
   // ✅ THE FIX: Pull all from the Zustand list store
   const { lists, fetchLists, setLists, updateList } = useListStore()
+  const { cards, setCardsForList, updateCard } = useCardStore();
 
   const [activeCard, setActiveCard] = useState(null)
   const [activeList, setActiveList] = useState(null)
@@ -50,31 +52,38 @@ const KanbanBoard = ({ onCardClick }) => {
     setActiveCard(null);
     setActiveList(null);
 
-    // Only handle list moves
-    if (!over || active.id === over.id) return;
+    // --- Card Drag: Move between lists ---
+    if (active.data.current?.type === "card" && over) {
+      const activeCard = active.data.current.card;
+      const overListId = over.data.current?.list?.id;
+      if (overListId && activeCard.list !== overListId) {
+        // Remove from old list
+        const oldListCards = cards[activeCard.list] || [];
+        const newOldListCards = oldListCards.filter((c) => c.id !== activeCard.id);
+        setCardsForList && setCardsForList(activeCard.list, newOldListCards);
 
+        // Add to new list at the top
+        const newListCards = cards[overListId] || [];
+        const updatedCard = { ...activeCard, list: overListId };
+        setCardsForList && setCardsForList(overListId, [updatedCard, ...newListCards]);
+
+        // Persist to backend
+        await updateCard(activeCard.id, { list: overListId });
+        return;
+      }
+    }
+
+    // --- List Drag: Move lists ---
+    if (!over || active.id === over.id) return;
     const oldIndex = lists.findIndex((l) => l.id === active.id);
     const newIndex = lists.findIndex((l) => l.id === over.id);
-
     if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
-
-    // Reorder locally
     const newLists = [...lists];
     const [moved] = newLists.splice(oldIndex, 1);
     newLists.splice(newIndex, 0, moved);
-
-    // Reassign order
-    const orderedLists = newLists.map((list, idx) => ({
-      ...list,
-      order: idx,
-    }));
-
-    setLists(orderedLists); // Instantly update UI
-
-    // Persist in backend
-    await Promise.all(
-      orderedLists.map((list) => updateList(list.id, { order: list.order }))
-    );
+    const orderedLists = newLists.map((list, idx) => ({ ...list, order: idx }));
+    setLists(orderedLists);
+    await Promise.all(orderedLists.map((list) => updateList(list.id, { order: list.order })));
   };
 
   if (!board) {

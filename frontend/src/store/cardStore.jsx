@@ -53,6 +53,15 @@ const useCardStore = create((set, get) => ({
     }));
   },
 
+  setCardsForList: (listId, cards) => {
+    set((state) => ({
+      cards: {
+        ...state.cards,
+        [listId]: cards,
+      },
+    }));
+  },
+
   // Comments
   fetchComments: async (cardId) => {
     const res = await getComments(cardId);
