@@ -63,3 +63,6 @@ backend/accounts/__pycache__/serializers.cpython-311.pyc
 backend/accounts/__pycache__/serializers.cpython-311.pyc
 backend/accounts/migrations/__pycache__/0002_alter_customuser_avatar.cpython-311.pyc
 backend/accounts/migrations/0002_alter_customuser_avatar.py
+backend/accounts/__pycache__/serializers.cpython-311.pyc
+backend/media/avatars/
+backend/accounts/__pycache__/serializers.cpython-311.pyc
