@@ -22,14 +22,30 @@ class BoardAPI(APIView):
         serializer = BoardSerializer(data=request.data)
         if serializer.is_valid():
             board = serializer.save(created_by=request.user)
-            # <--- Add this line:
             BoardMembership.objects.create(board=board, user=request.user, role="owner")
             return Response(BoardSerializer(board).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def patch(self, request, id=None):
+        board_id = id or request.data.get("id")
+        board = get_object_or_404(Board, id=board_id)
+        serializer = BoardSerializer(board, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request):
-        board_id = request.data.get('id') or request.query_params.get('id')
+    def put(self, request, id=None):
+        board_id = id or request.data.get("id")
+        board = get_object_or_404(Board, id=board_id)
+        serializer = BoardSerializer(board, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, id=None):
+        board_id = id or request.data.get('id') or request.query_params.get('id')
         if not board_id:
             return Response({'detail': 'Board id required.'}, status=status.HTTP_400_BAD_REQUEST)
         board = get_object_or_404(Board, pk=board_id)
@@ -53,8 +69,26 @@ class ListAPI(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request):
-        list_id = request.data.get('id') or request.query_params.get('id')
+    def patch(self, request, id=None):
+        list_id = id or request.data.get("id")
+        list_obj = get_object_or_404(List, id=list_id)
+        serializer = ListSerializer(list_obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, id=None):
+        list_id = id or request.data.get("id")
+        list_obj = get_object_or_404(List, id=list_id)
+        serializer = ListSerializer(list_obj, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, id=None):
+        list_id = id or request.data.get('id') or request.query_params.get('id')
         if not list_id:
             return Response({'detail': 'List id required.'}, status=status.HTTP_400_BAD_REQUEST)
         list_obj = get_object_or_404(List, pk=list_id)

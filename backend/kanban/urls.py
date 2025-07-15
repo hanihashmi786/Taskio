@@ -5,7 +5,9 @@ from .views import (
 
 urlpatterns = [
     path('boards/', BoardAPI.as_view(), name='board-list'),
+    path('boards/<int:id>/', BoardAPI.as_view(), name='board-detail'),
     path('lists/', ListAPI.as_view(), name='list-list'),
+    path('lists/<int:id>/', ListAPI.as_view(), name='list-detail'),
     path('cards/', CardAPI.as_view(), name='card-list'),
     path('cards/<int:id>/', CardAPI.as_view(), name='card-detail'),
     path('labels/', LabelAPI.as_view(), name='label-list'),
