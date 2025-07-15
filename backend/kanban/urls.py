@@ -11,5 +11,6 @@ urlpatterns = [
     path('labels/', LabelAPI.as_view(), name='label-list'),
     path('checklists/', ChecklistAPI.as_view(), name='checklist-list'),
     path('checklist-items/', ChecklistItemAPI.as_view(), name='checklistitem-list'),
+    path('checklist-items/<int:id>/', ChecklistItemAPI.as_view(), name='checklistitem-detail'),
     path('comments/', CommentAPI.as_view(), name='comment-list'),
 ]

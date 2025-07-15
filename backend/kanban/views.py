@@ -179,8 +179,8 @@ class ChecklistItemAPI(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request):
-        item_id = request.data.get("id")
+    def put(self, request, id=None):
+        item_id = id or request.data.get("id")
         item = get_object_or_404(ChecklistItem, id=item_id)
         serializer = ChecklistItemSerializer(item, data=request.data, partial=True)
         if serializer.is_valid():
@@ -188,8 +188,8 @@ class ChecklistItemAPI(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def patch(self, request):
-        item_id = request.data.get("id")
+    def patch(self, request, id=None):
+        item_id = id or request.data.get("id")
         item = get_object_or_404(ChecklistItem, id=item_id)
         serializer = ChecklistItemSerializer(item, data=request.data, partial=True)
         if serializer.is_valid():
@@ -197,8 +197,8 @@ class ChecklistItemAPI(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request):
-        item_id = request.data.get('id') or request.query_params.get('id')
+    def delete(self, request, id=None):
+        item_id = id or request.data.get('id') or request.query_params.get('id')
         if not item_id:
             return Response({'detail': 'ChecklistItem id required.'}, status=status.HTTP_400_BAD_REQUEST)
         item = get_object_or_404(ChecklistItem, pk=item_id)

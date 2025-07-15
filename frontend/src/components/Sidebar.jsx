@@ -18,12 +18,10 @@ const Sidebar = () => {
   const currentBoard = getCurrentBoard()
 
   const navigationItems = [
-    { icon: Home, label: "Home", path: "/dashboard" },
     { icon: Trello, label: "Boards", path: "/dashboard/boards" },
   ]
 
   const userItems = [
-    { icon: Settings, label: "Settings", path: "/dashboard/settings" },
     { icon: User, label: "Profile", path: "/dashboard/profile" },
   ]
 

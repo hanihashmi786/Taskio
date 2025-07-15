@@ -8,13 +8,14 @@ import {
   Paperclip,
   Trash2,
   Edit3,
-  Save,
   CheckSquare,
   MessageCircle,
   Users,
   Plus,
   Clock,
   FileText,
+  Check,
+  Loader2,
 } from "lucide-react"
 import { getLabelById } from "../utils/labels"
 import useBoardStore from "../store/boardStore"
@@ -46,28 +47,39 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     labels: [],
   })
 
+  const [originalData, setOriginalData] = useState({})
+
   // UI states
   const [showLabelSelector, setShowLabelSelector] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [activeTab, setActiveTab] = useState("details") // details, checklists, comments
+  const [activeTab, setActiveTab] = useState("details")
   const [newComment, setNewComment] = useState("")
-  // Per-checklist new item text state
-  const [newChecklistItem, setNewChecklistItem] = useState({});
-  const [newChecklistTitle, setNewChecklistTitle] = useState("");
-  const [addingChecklist, setAddingChecklist] = useState(false);
+  const [newChecklistItem, setNewChecklistItem] = useState({})
+  const [newChecklistTitle, setNewChecklistTitle] = useState("")
+  const [addingChecklist, setAddingChecklist] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
 
   useEffect(() => {
     if (card) {
-      setFormData({
+      const data = {
         title: card.title || "",
         description: card.description || "",
         due_date: card.due_date || "",
         assignees: card.assignees || [],
         labels: card.labels || [],
-      })
+      }
+      setFormData(data)
+      setOriginalData(data)
+      setHasChanges(false)
     }
   }, [card])
+
+  useEffect(() => {
+    // Check if form data has changed
+    const dataChanged = JSON.stringify(formData) !== JSON.stringify(originalData)
+    setHasChanges(dataChanged)
+  }, [formData, originalData])
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -87,24 +99,17 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     }
   }, [isOpen, onClose])
 
-  // Load checklist and comments when modal opens
   useEffect(() => {
     if (!card?.id) return
-
     fetchChecklist(card.id)
     fetchComments(card.id)
-  }, [card?.id, fetchChecklist, fetchComments])
-
-  useEffect(() => {
-    if (!card?.id) return;
-    fetchChecklists(card.id);
-  }, [card?.id, fetchChecklists]);
+    fetchChecklists(card.id)
+  }, [card?.id, fetchChecklist, fetchComments, fetchChecklists])
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  // Card Save
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -115,6 +120,8 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
         labels: formData.labels,
         assignees: formData.assignees,
       })
+      setOriginalData(formData)
+      setHasChanges(false)
       setIsEditing(false)
     } catch (error) {
       console.error("Error saving card:", error)
@@ -134,7 +141,6 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     }
   }
 
-  // Assignees
   const toggleAssignee = (userId) => {
     handleInputChange(
       "assignees",
@@ -144,21 +150,20 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     )
   }
 
-  // Checklist functions
   const handleAddChecklistItem = async (checklistId) => {
-    const text = newChecklistItem[checklistId];
-    if (!text || !text.trim()) return;
+    const text = newChecklistItem[checklistId]
+    if (!text || !text.trim()) return
     try {
       await addChecklistItem({
         checklist: checklistId,
         text: text.trim(),
         completed: false,
-      });
-      setNewChecklistItem((prev) => ({ ...prev, [checklistId]: "" }));
+      })
+      setNewChecklistItem((prev) => ({ ...prev, [checklistId]: "" }))
     } catch (error) {
-      console.error("Error adding checklist item:", error);
+      console.error("Error adding checklist item:", error)
     }
-  };
+  }
 
   const handleToggleChecklistItem = async (itemId, completed) => {
     try {
@@ -177,35 +182,27 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   }
 
   const handleAddChecklist = async () => {
-    if (!newChecklistTitle.trim()) return;
-    setAddingChecklist(true);
+    if (!newChecklistTitle.trim()) return
+    setAddingChecklist(true)
     try {
-      await addChecklist({ card: card.id, title: newChecklistTitle.trim() });
-      setNewChecklistTitle("");
-      await fetchChecklists(card.id); // Refresh list
+      await addChecklist({ card: card.id, title: newChecklistTitle.trim() })
+      setNewChecklistTitle("")
+      await fetchChecklists(card.id)
     } catch (error) {
-      console.error("Error adding checklist:", error);
+      console.error("Error adding checklist:", error)
     } finally {
-      setAddingChecklist(false);
+      setAddingChecklist(false)
     }
-  };
+  }
 
-  // Comments
   const handleAddComment = async () => {
     if (!newComment.trim()) return
-
     try {
       await addComment(card.id, { text: newComment.trim() })
       setNewComment("")
     } catch (error) {
       console.error("Error adding comment:", error)
     }
-  }
-
-  const getCompletionPercentage = () => {
-    if (checklistItems.length === 0) return 0
-    const completed = checklistItems.filter((item) => item.completed).length
-    return Math.round((completed / checklistItems.length) * 100)
   }
 
   const formatDate = (dateString) => {
@@ -225,7 +222,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-auto">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
           <div className="flex items-center gap-3 flex-1">
@@ -245,20 +242,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {isEditing ? (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
-              >
-                {saving ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                {saving ? "Saving..." : "Save"}
-              </button>
-            ) : (
+            {!isEditing ? (
               <button
                 onClick={() => setIsEditing(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 rounded-lg transition-colors"
@@ -266,7 +250,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                 <Edit3 className="w-4 h-4" />
                 Edit
               </button>
-            )}
+            ) : null}
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
@@ -276,7 +260,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
           </div>
         </div>
 
-        <div className="flex h-[calc(90vh-80px)]">
+        <div className="flex flex-1 overflow-hidden">
           {/* Main Content */}
           <div className="flex-1 overflow-y-auto">
             {/* Tabs */}
@@ -312,7 +296,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
             </div>
 
             {/* Tab Content */}
-            <div className="p-6">
+            <div className="p-6 flex-1">
               {activeTab === "details" && (
                 <div className="space-y-6">
                   {/* Description */}
@@ -414,8 +398,8 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         Due Date
                       </label>
                       <input
-                        type="date"
-                        value={formData.due_date ? formData.due_date.slice(0, 10) : ""}
+                        type="datetime-local"
+                        value={formData.due_date || ""}
                         onChange={(e) => handleInputChange("due_date", e.target.value)}
                         className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                       />
@@ -427,103 +411,137 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
               {activeTab === "checklists" && (
                 <div className="space-y-6">
                   {/* Add New Checklist */}
-                  <div className="flex gap-2 mb-4">
-                    <input
-                      type="text"
-                      value={newChecklistTitle}
-                      onChange={e => setNewChecklistTitle(e.target.value)}
-                      placeholder="Add a new checklist..."
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      onKeyPress={e => { if (e.key === "Enter") handleAddChecklist(); }}
-                      disabled={addingChecklist}
-                    />
-                    <button
-                      onClick={handleAddChecklist}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                      disabled={addingChecklist}
-                    >
-                      <Plus className="w-4 h-4" />
-                      {addingChecklist ? "Adding..." : "Add Checklist"}
-                    </button>
+                  <div className="bg-gray-50 dark:bg-slate-700/30 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
+                    <div className="flex gap-3">
+                      <input
+                        type="text"
+                        value={newChecklistTitle}
+                        onChange={(e) => setNewChecklistTitle(e.target.value)}
+                        placeholder="Create a new checklist..."
+                        className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") handleAddChecklist()
+                        }}
+                        disabled={addingChecklist}
+                      />
+                      <button
+                        onClick={handleAddChecklist}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                        disabled={addingChecklist || !newChecklistTitle.trim()}
+                      >
+                        {addingChecklist ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        {addingChecklist ? "Adding..." : "Add Checklist"}
+                      </button>
+                    </div>
                   </div>
-                  {/* Grouped Checklists */}
+
+                  {/* Checklists */}
                   {checklists && checklists.length > 0 ? (
-                    checklists.map((cl) => {
-                      const items = checklistItems.filter((item) => item.checklist === cl.id);
-                      const completed = items.filter((item) => item.completed).length;
-                      const percent = items.length > 0 ? Math.round((completed / items.length) * 100) : 0;
-                      return (
-                        <div key={cl.id} className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6 border border-gray-200 dark:border-slate-600 mb-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                              <CheckSquare className="w-5 h-5" />
-                              {cl.title || "Checklist"}
-                            </h3>
-                            <span className="text-sm text-gray-500 dark:text-slate-400">
-                              {percent}% complete
-                            </span>
-                          </div>
-                          {/* Progress Bar */}
-                          <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-2 mb-4">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${percent}%` }}
-                            />
-                          </div>
-                          {/* Checklist Items */}
-                          <div className="space-y-2">
-                            {items.map((item) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors group"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={item.completed}
-                                  onChange={() => handleToggleChecklistItem(item.id, item.completed)}
-                                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                />
-                                <span
-                                  className={`flex-1 text-sm ${item.completed ? "line-through text-gray-400 dark:text-slate-500" : "text-gray-900 dark:text-white"}`}
-                                >
-                                  {item.text}
+                    <div className="space-y-4">
+                      {checklists.map((checklist) => {
+                        const items = checklistItems.filter((item) => item.checklist === checklist.id)
+                        const completed = items.filter((item) => item.completed).length
+                        const total = items.length
+                        const percent = total > 0 ? Math.round((completed / total) * 100) : 0
+
+                        return (
+                          <div
+                            key={checklist.id}
+                            className="bg-white dark:bg-slate-700 rounded-lg p-5 border border-gray-200 dark:border-slate-600 shadow-sm"
+                          >
+                            {/* Checklist Header */}
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                {checklist.title}
+                              </h3>
+                              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
+                                <span className="font-medium">
+                                  {completed}/{total}
                                 </span>
-                                <button
-                                  onClick={() => handleDeleteChecklistItem(item.id)}
-                                  className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <span>({percent}%)</span>
                               </div>
-                            ))}
-                          </div>
-                          {/* Add New Item to Checklist */}
-                          <div className="flex gap-2 mt-4">
-                            <input
-                              type="text"
-                              value={newChecklistItem[cl.id] || ""}
-                              onChange={e => setNewChecklistItem(prev => ({ ...prev, [cl.id]: e.target.value }))}
-                              placeholder="Add a checklist item..."
-                              className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                              onKeyPress={(e) => {
-                                if (e.key === "Enter") {
-                                  handleAddChecklistItem(cl.id)
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="mb-4">
+                              <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full transition-all duration-500 ${
+                                    percent === 100 ? "bg-green-500" : "bg-blue-500"
+                                  }`}
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Checklist Items */}
+                            <div className="space-y-2 mb-4">
+                              {items.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-slate-600/50 rounded-lg transition-colors group"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={item.completed}
+                                    onChange={() => handleToggleChecklistItem(item.id, item.completed)}
+                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                  />
+                                  <span
+                                    className={`flex-1 text-sm transition-all ${
+                                      item.completed
+                                        ? "line-through text-gray-400 dark:text-slate-500"
+                                        : "text-gray-900 dark:text-white"
+                                    }`}
+                                  >
+                                    {item.text}
+                                  </span>
+                                  <button
+                                    onClick={() => handleDeleteChecklistItem(item.id)}
+                                    className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Add New Item */}
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newChecklistItem[checklist.id] || ""}
+                                onChange={(e) =>
+                                  setNewChecklistItem((prev) => ({ ...prev, [checklist.id]: e.target.value }))
                                 }
-                              }}
-                            />
-                            <button
-                              onClick={() => handleAddChecklistItem(cl.id)}
-                              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                            >
-                              <Plus className="w-4 h-4" />
-                              Add
-                            </button>
+                                placeholder="Add an item..."
+                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                                onKeyPress={(e) => {
+                                  if (e.key === "Enter") {
+                                    handleAddChecklistItem(checklist.id)
+                                  }
+                                }}
+                              />
+                              <button
+                                onClick={() => handleAddChecklistItem(checklist.id)}
+                                className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-600 hover:bg-gray-200 dark:hover:bg-slate-500 text-gray-700 dark:text-slate-200 rounded-lg transition-colors"
+                                disabled={!newChecklistItem[checklist.id]?.trim()}
+                              >
+                                <Plus className="w-4 h-4" />
+                                Add
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
+                        )
+                      })}
+                    </div>
                   ) : (
-                    <div className="text-gray-500 dark:text-slate-400 text-sm">No checklists yet.</div>
+                    <div className="text-center py-8">
+                      <CheckSquare className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
+                      <p className="text-gray-500 dark:text-slate-400">No checklists yet</p>
+                      <p className="text-sm text-gray-400 dark:text-slate-500">Create your first checklist above</p>
+                    </div>
                   )}
                 </div>
               )}
@@ -665,6 +683,22 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
             </div>
           </div>
         </div>
+
+        {/* Save Button - Fixed at bottom */}
+        {hasChanges && (
+          <div className="border-t border-gray-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-800">
+            <div className="flex justify-end">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                <span className="font-medium">{saving ? "Saving..." : "Save Changes"}</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Label Selector Modal */}

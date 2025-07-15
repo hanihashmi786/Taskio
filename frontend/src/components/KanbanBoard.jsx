@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
+import { useParams } from "react-router-dom"
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core"
 import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortable"
 import { Plus } from "lucide-react"
@@ -11,9 +12,17 @@ import KanbanCard from "./KanbanCard"
 import AddListForm from "./AddListForm"
 
 const KanbanBoard = ({ onCardClick }) => {
-  const { getCurrentBoard } = useBoardStore()
+  const { id } = useParams();
+  const { getCurrentBoard, setCurrentBoard, boards } = useBoardStore()
   const board = getCurrentBoard()
   const boardId = board?.id
+
+  // Auto-select board based on URL param
+  useEffect(() => {
+    if (id && boards.length) {
+      setCurrentBoard(Number(id));
+    }
+  }, [id, boards, setCurrentBoard]);
 
   // ✅ THE FIX: Pull all from the Zustand list store
   const { lists, fetchLists, setLists, updateList } = useListStore()
