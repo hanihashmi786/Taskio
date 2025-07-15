@@ -7,6 +7,17 @@ import useBoardStore from "../store/boardStore"
 import BoardMembers from "./BoardMembers"
 import { Sun, Moon, Search, Menu, User, LogOut, Users } from "lucide-react"
 
+const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || "";
+
+function getAvatarUrl(avatar) {
+  if (!avatar) return "/placeholder.svg";
+  if (avatar.startsWith("http")) return avatar;
+  if (avatar.startsWith("/media/")) return MEDIA_URL.replace(/\/$/, "") + avatar;
+  if (avatar.startsWith("media/")) return MEDIA_URL.replace(/\/$/, "") + "/" + avatar;
+  if (avatar.startsWith("avatars/")) return MEDIA_URL.replace(/\/$/, "") + "/media/" + avatar;
+  return avatar;
+}
+
 const Header = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -40,6 +51,11 @@ const Header = () => {
       : user.name || user.username || "User") || "User"
 
   const displayEmail = user.email || "No email"
+
+  // Debug: log the avatar value
+  console.log("Header contextUser:", contextUser);
+  console.log("Header user:", user);
+  console.log("Header avatar:", user.avatar);
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -118,7 +134,7 @@ const Header = () => {
                 className="flex items-center space-x-3 ml-2 pl-2 border-l border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg p-2 transition-colors"
               >
                 <img
-                  src={user.avatar || "/placeholder.svg"}
+                  src={getAvatarUrl(user.avatar)}
                   alt={displayName}
                   className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
                 />

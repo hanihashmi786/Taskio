@@ -3,6 +3,20 @@
 import { useState, useEffect } from "react"
 import { getProfile, updateProfile } from "../api/auth"
 import { Save, Camera, User, Mail, Calendar } from "lucide-react"
+import { useApp } from "../context/AppContext"
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || "";
+
+function getAvatarUrl(avatar) {
+  if (!avatar) return "/placeholder.svg";
+  if (avatar.startsWith("http")) return avatar;
+  if (avatar.startsWith("/media/")) return MEDIA_URL.replace(/\/$/, "") + avatar;
+  if (avatar.startsWith("media/")) return MEDIA_URL.replace(/\/$/, "") + "/" + avatar;
+  if (avatar.startsWith("avatars/")) return MEDIA_URL.replace(/\/$/, "") + "/media/" + avatar;
+  return avatar;
+}
 
 const Profile = () => {
   const [formData, setFormData] = useState({
@@ -11,11 +25,14 @@ const Profile = () => {
     email: "",
     avatar: "",
   })
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState("")
   const [memberSince, setMemberSince] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState("")
   const [error, setError] = useState("")
+  const { updateUser } = useApp();
 
   useEffect(() => {
     setLoading(true)
@@ -27,6 +44,7 @@ const Profile = () => {
           email: res.data.email || "",
           avatar: res.data.avatar || "",
         })
+        setAvatarPreview(res.data.avatar || "")
         setMemberSince(res.data.date_joined ? new Date(res.data.date_joined) : null)
         setLoading(false)
       })
@@ -42,39 +60,67 @@ const Profile = () => {
     setError("")
   }
 
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setAvatarFile(file)
+      setAvatarPreview(URL.createObjectURL(file))
+      setFormData(prev => ({ ...prev, avatar: "" })) // clear base64
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSaving(true)
     setSuccess("")
     setError("")
     try {
-      const res = await updateProfile({
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        avatar: formData.avatar,
-      })
+      const form = new window.FormData()
+      form.append("first_name", formData.firstName)
+      form.append("last_name", formData.lastName)
+      if (avatarFile) {
+        form.append("avatar", avatarFile)
+      }
+      const res = await updateProfile(form)
       setFormData({
         firstName: res.data.first_name || "",
         lastName: res.data.last_name || "",
         email: res.data.email || "",
         avatar: res.data.avatar || "",
       })
+      setAvatarPreview(res.data.avatar || "")
+      setAvatarFile(null)
+      // Update localStorage user info for header
+      try {
+        const authData = JSON.parse(localStorage.getItem("trello-auth") || "{}")
+        if (authData && authData.user) {
+          authData.user = {
+            ...authData.user,
+            first_name: res.data.first_name,
+            last_name: res.data.last_name,
+            email: res.data.email,
+            avatar: res.data.avatar,
+          }
+          localStorage.setItem("trello-auth", JSON.stringify(authData))
+        }
+        // Also update trello-user for context rehydration
+        const userObj = {
+          name: (res.data.first_name + " " + res.data.last_name).trim(),
+          email: res.data.email,
+          username: res.data.email, // or use res.data.username if available
+          avatar: res.data.avatar,
+        };
+        localStorage.setItem("trello-user", JSON.stringify(userObj));
+        // Update context user for header
+        if (updateUser) {
+          updateUser(userObj);
+        }
+      } catch (e) { /* ignore */ }
       setSuccess("Profile updated successfully.")
     } catch (err) {
       setError("Failed to update profile. Please log in again.")
     }
     setSaving(false)
-  }
-
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        handleInputChange("avatar", event.target.result)
-      }
-      reader.readAsDataURL(file)
-    }
   }
 
   return (
@@ -97,9 +143,9 @@ const Profile = () => {
                 <div className="relative inline-block mb-6">
                   <img
                     src={
-                      formData.avatar ||
-                      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=128&h=128&fit=crop&crop=face" ||
-                      "/placeholder.svg"
+                      avatarPreview
+                        ? getAvatarUrl(avatarPreview)
+                        : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=128&h=128&fit=crop&crop=face"
                     }
                     alt="Profile"
                     className="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-slate-600 shadow-lg"

@@ -59,3 +59,7 @@ backend/kanban/migrations/0002_card_assignees_checklist_checklistitem_comment_la
 backend/kanban/migrations/0001_initial.py
 backend/db.sqlite3
 backend/db.sqlite3
+backend/accounts/__pycache__/serializers.cpython-311.pyc
+backend/accounts/__pycache__/serializers.cpython-311.pyc
+backend/accounts/migrations/__pycache__/0002_alter_customuser_avatar.cpython-311.pyc
+backend/accounts/migrations/0002_alter_customuser_avatar.py

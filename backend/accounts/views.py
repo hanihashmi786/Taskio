@@ -74,7 +74,11 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
     def patch(self, request):
-        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        # Use request.FILES for avatar if present
+        data = request.data.copy()
+        if 'avatar' in request.FILES:
+            data['avatar'] = request.FILES['avatar']
+        serializer = UserProfileSerializer(request.user, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)

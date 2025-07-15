@@ -4,6 +4,17 @@ import { X, UserPlus, Crown, Shield, User, Mail, Trash2, MoreHorizontal, Loader2
 import useBoardStore from "../store/boardStore"
 import API from "../api/index"
 
+const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || "";
+
+function getAvatarUrl(avatar) {
+  if (!avatar) return "/placeholder.svg";
+  if (avatar.startsWith("http")) return avatar;
+  if (avatar.startsWith("/media/")) return MEDIA_URL.replace(/\/$/, "") + avatar;
+  if (avatar.startsWith("media/")) return MEDIA_URL.replace(/\/$/, "") + "/" + avatar;
+  if (avatar.startsWith("avatars/")) return MEDIA_URL.replace(/\/$/, "") + "/media/" + avatar;
+  return avatar;
+}
+
 const BoardMembers = ({ boardId, onClose }) => {
   const { getCurrentBoard, removeMemberFromBoard, updateMemberRole, canEditBoard } = useBoardStore()
   const [showAddMember, setShowAddMember] = useState(false)
@@ -164,7 +175,7 @@ const BoardMembers = ({ boardId, onClose }) => {
                 {searchResults.map(user => (
                   <li key={user.id} className="flex items-center py-1 border-b last:border-b-0">
                     <img
-                      src={user.avatar || "/placeholder.svg"}
+                      src={getAvatarUrl(user.avatar)}
                       alt={user.first_name || "No Name"}
                       className="w-8 h-8 rounded-full object-cover mr-2"
                     />
@@ -195,7 +206,7 @@ const BoardMembers = ({ boardId, onClose }) => {
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <img
-                      src={member.avatar || "/placeholder.svg"}
+                      src={getAvatarUrl(member.avatar)}
                       alt={member.first_name || "No Name"}
                       className="w-10 h-10 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
                     />
