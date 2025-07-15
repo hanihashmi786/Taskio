@@ -1,52 +1,103 @@
 "use client"
-import { useState } from "react"
-import { X, Plus, UserPlus, Crown, Shield, User, Mail, Trash2, MoreHorizontal } from "lucide-react"
+import { useState, useEffect } from "react"
+import { X, UserPlus, Crown, Shield, User, Mail, Trash2, MoreHorizontal, Loader2 } from "lucide-react"
 import useBoardStore from "../store/boardStore"
+import API from "../api/index"
 
 const BoardMembers = ({ boardId, onClose }) => {
-  const { getCurrentBoard, addMemberToBoard, removeMemberFromBoard, updateMemberRole, canEditBoard } = useBoardStore()
+  const { getCurrentBoard, removeMemberFromBoard, updateMemberRole, canEditBoard } = useBoardStore()
   const [showAddMember, setShowAddMember] = useState(false)
-  const [newMemberData, setNewMemberData] = useState({
-    name: "",
-    email: "",
-    avatar: "",
-  })
+  const [searchTerm, setSearchTerm] = useState("")
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [addingUserId, setAddingUserId] = useState(null)
   const [showMemberOptions, setShowMemberOptions] = useState(null)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [refresh, setRefresh] = useState(false)
 
+  // Get current board and safe members array
   const board = getCurrentBoard()
+  const members = Array.isArray(board?.members) ? board.members : []
   const canEdit = canEditBoard(boardId)
 
+  console.log("Current board:", board)
+  console.log("Board members:", members)
   if (!board) return null
 
-  const handleAddMember = (e) => {
-    e.preventDefault()
-    if (newMemberData.name.trim() && newMemberData.email.trim()) {
-      const memberToAdd = {
-        ...newMemberData,
-        name: newMemberData.name.trim(),
-        email: newMemberData.email.trim(),
-        avatar:
-          newMemberData.avatar ||
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(newMemberData.name)}&background=3b82f6&color=fff`,
+  // --- Search users to add ---
+  useEffect(() => {
+    if (!searchTerm) {
+      setSearchResults([])
+      setError("")
+      return
+    }
+    setSearching(true)
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await API.get(`/accounts/search-users/?q=${encodeURIComponent(searchTerm)}&board=${boardId}`)
+        setSearchResults(res.data)
+        setError("")
+      } catch (error) {
+        // Print entire error to console for debugging
+        console.error("search-users API error:", error?.response?.data || error)
+        setError(error?.response?.data?.error || "Failed to search users.")
+        setSearchResults([])
       }
-      addMemberToBoard(boardId, memberToAdd)
-      setNewMemberData({ name: "", email: "", avatar: "" })
-      setShowAddMember(false)
+      setSearching(false)
+    }, 350)
+    return () => clearTimeout(timeout)
+  }, [searchTerm, boardId, refresh])
+
+  // --- Add user to board ---
+  const handleAdd = async (userId) => {
+    setAddingUserId(userId)
+    setError("")
+    setSuccess("")
+    try {
+      const res = await API.post("/accounts/add-board-member/", {
+        board_id: boardId,
+        user_id: userId,
+        role: "member"
+      })
+      setSuccess("User added to board!")
+      setSearchResults((prev) => prev.filter(u => u.id !== userId))
+      setSearchTerm("")
+      setRefresh(r => !r)
+    } catch (error) {
+      console.error("addBoardMember API error:", error?.response?.data || error)
+      setError(error?.response?.data?.error || "Could not add member.")
+    }
+    setAddingUserId(null)
+  }
+
+  // --- Remove member ---
+  const handleRemoveMember = async (memberId) => {
+    try {
+      if (window.confirm("Are you sure you want to remove this member from the board?")) {
+        await removeMemberFromBoard(boardId, memberId)
+        setShowMemberOptions(null)
+        setRefresh(r => !r)
+      }
+    } catch (error) {
+      console.error("removeMemberFromBoard API error:", error?.response?.data || error)
+      setError(error?.response?.data?.error || "Could not remove member.")
     }
   }
 
-  const handleRemoveMember = (memberId) => {
-    if (window.confirm("Are you sure you want to remove this member from the board?")) {
-      removeMemberFromBoard(boardId, memberId)
+  // --- Role management ---
+  const handleRoleChange = async (memberId, newRole) => {
+    try {
+      await updateMemberRole(boardId, memberId, newRole)
       setShowMemberOptions(null)
+      setRefresh(r => !r)
+    } catch (error) {
+      console.error("updateMemberRole API error:", error?.response?.data || error)
+      setError(error?.response?.data?.error || "Could not update role.")
     }
   }
 
-  const handleRoleChange = (memberId, newRole) => {
-    updateMemberRole(boardId, memberId, newRole)
-    setShowMemberOptions(null)
-  }
-
+  // --- Role helpers ---
   const getRoleIcon = (role) => {
     switch (role) {
       case "owner":
@@ -57,7 +108,6 @@ const BoardMembers = ({ boardId, onClose }) => {
         return <User className="w-4 h-4 text-gray-500 dark:text-slate-400" />
     }
   }
-
   const getRoleLabel = (role) => {
     switch (role) {
       case "owner":
@@ -90,56 +140,46 @@ const BoardMembers = ({ boardId, onClose }) => {
 
         {/* Content */}
         <div className="p-6 max-h-[60vh] overflow-y-auto">
-          {/* Add Member Form */}
-          {showAddMember && canEdit && (
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-lg border border-gray-200 dark:border-slate-600">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-3">Add New Member</h3>
-              <form onSubmit={handleAddMember} className="space-y-3">
-                <div>
-                  <input
-                    type="text"
-                    value={newMemberData.name}
-                    onChange={(e) => setNewMemberData((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Full name"
-                    className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <input
-                    type="email"
-                    value={newMemberData.email}
-                    onChange={(e) => setNewMemberData((prev) => ({ ...prev, email: e.target.value }))}
-                    placeholder="Email address"
-                    className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <input
-                    type="url"
-                    value={newMemberData.avatar}
-                    onChange={(e) => setNewMemberData((prev) => ({ ...prev, avatar: e.target.value }))}
-                    placeholder="Avatar URL (optional)"
-                    className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Add Member
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddMember(false)}
-                    className="px-4 py-2 text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+          {/* Add Member Search */}
+          {canEdit && (
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-2">Add Member</h3>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={e => {
+                  setSearchTerm(e.target.value)
+                  setError("")
+                  setSuccess("")
+                }}
+                placeholder="Search by name or email"
+                className="w-full p-3 border border-gray-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-1"
+              />
+              {searching && (
+                <div className="text-sm text-gray-500 flex items-center"><Loader2 className="animate-spin w-4 h-4 mr-2" />Searching…</div>
+              )}
+              {error && <div className="text-sm text-red-600">{error}</div>}
+              {success && <div className="text-sm text-green-600">{success}</div>}
+              <ul>
+                {searchResults.map(user => (
+                  <li key={user.id} className="flex items-center py-1 border-b last:border-b-0">
+                    <img
+                      src={user.avatar || "/placeholder.svg"}
+                      alt={user.first_name || "No Name"}
+                      className="w-8 h-8 rounded-full object-cover mr-2"
+                    />
+                    <span className="flex-1">{user.first_name || "No Name"} <span className="text-gray-500 text-xs">({user.email})</span></span>
+                    <button
+                      onClick={() => handleAdd(user.id)}
+                      disabled={addingUserId === user.id}
+                      className="p-1 rounded bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-60"
+                      title="Add to board"
+                    >
+                      {addingUserId === user.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
@@ -147,31 +187,21 @@ const BoardMembers = ({ boardId, onClose }) => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                Members ({board.members.length})
+                Members ({members.length})
               </h3>
-              {canEdit && !showAddMember && (
-                <button
-                  onClick={() => setShowAddMember(true)}
-                  className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Member
-                </button>
-              )}
             </div>
-
-            {board.members.map((member) => (
+            {members.map((member) => (
               <div key={member.id} className="relative group">
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
                   <div className="flex items-center gap-3">
                     <img
                       src={member.avatar || "/placeholder.svg"}
-                      alt={member.name}
+                      alt={member.first_name || "No Name"}
                       className="w-10 h-10 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
                     />
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900 dark:text-slate-100">{member.name}</span>
+                        <span className="font-medium text-gray-900 dark:text-slate-100">{member.first_name || "No Name"}</span>
                         {getRoleIcon(member.role)}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
@@ -185,7 +215,6 @@ const BoardMembers = ({ boardId, onClose }) => {
                     <span className="text-xs px-2 py-1 bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300 rounded-full">
                       {getRoleLabel(member.role)}
                     </span>
-
                     {canEdit && member.role !== "owner" && (
                       <div className="relative">
                         <button

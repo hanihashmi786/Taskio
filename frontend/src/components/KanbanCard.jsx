@@ -18,10 +18,7 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
     isDragging: isSortableDragging,
   } = useSortable({
     id: card.id,
-    data: {
-      type: "card",
-      card,
-    },
+    data: { type: "card", card },
   })
 
   const style = {
@@ -29,12 +26,20 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
     transition,
   }
 
-  const isOverdue = card.dueDate && new Date(card.dueDate) < new Date()
-  const completedTasks = card.checklist?.filter((item) => item.completed).length || 0
-  const totalTasks = card.checklist?.length || 0
+  // Properly extract label IDs (if any)
+  const labelIds = Array.isArray(card.labels)
+    ? card.labels.map((l) => (typeof l === "number" ? l : Number.parseInt(l)))
+    : []
 
-  // Find assigned members
-  const assignedMembers = board?.members.filter((member) => card.assignees?.includes(member.id)) || []
+  const isOverdue = card.due_date && new Date(card.due_date) < new Date()
+  const completedTasks = Array.isArray(card.checklist) ? card.checklist.filter((item) => item.completed).length : 0
+  const totalTasks = Array.isArray(card.checklist) ? card.checklist.length : 0
+
+  // Find assigned members (if board data is loaded)
+  const assignedMembers =
+    Array.isArray(board?.members) && Array.isArray(card.assignees)
+      ? board.members.filter((member) => card.assignees.includes(member.id))
+      : []
 
   return (
     <div
@@ -51,10 +56,10 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
       `}
     >
       {/* Labels */}
-      {card.labels && card.labels.length > 0 && (
+      {labelIds.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {card.labels.map((label) => {
-            const labelData = typeof label === "string" ? getLabelById(label) : label
+          {labelIds.map((labelId) => {
+            const labelData = getLabelById(labelId)
             if (!labelData) return null
             return (
               <span
@@ -87,9 +92,9 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
               <img
                 key={member.id}
                 src={member.avatar || "/placeholder.svg"}
-                alt={member.name}
+                alt={`${member.first_name} ${member.last_name}`}
                 className="w-5 h-5 rounded-full ring-2 ring-white dark:ring-slate-700 hover:z-10 transition-transform hover:scale-110"
-                title={member.name}
+                title={`${member.first_name} ${member.last_name}`}
               />
             ))}
             {assignedMembers.length > 3 && (
@@ -101,7 +106,9 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
             )}
           </div>
           <span className="text-xs text-gray-600 dark:text-slate-400 ml-1">
-            {assignedMembers.length === 1 ? assignedMembers[0].name : `${assignedMembers.length} members`}
+            {assignedMembers.length === 1
+              ? `${assignedMembers[0].first_name} ${assignedMembers[0].last_name}`
+              : `${assignedMembers.length} members`}
           </span>
         </div>
       )}
@@ -110,13 +117,13 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-3">
           {/* Due Date */}
-          {card.dueDate && (
+          {card.due_date && (
             <div
               className={`flex items-center gap-1 ${isOverdue ? "text-red-500 dark:text-red-400" : "text-gray-500 dark:text-slate-400"}`}
             >
               {isOverdue ? <Clock className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
               <span className="font-medium">
-                {new Date(card.dueDate).toLocaleDateString("en-US", {
+                {new Date(card.due_date).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                 })}

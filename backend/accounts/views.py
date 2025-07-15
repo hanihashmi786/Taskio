@@ -6,6 +6,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import UserProfileSerializer
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import Q
+from kanban.models import Board, BoardMembership
 
 # --- SIGNUP ---
 @api_view(['POST'])
@@ -77,3 +79,118 @@ class ProfileView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# --- SEARCH USERS FOR ADDING TO BOARD ---
+class UserSearchAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = request.GET.get('q', '').strip()
+        board_id = request.GET.get('board')
+        User = get_user_model()
+        users = User.objects.all().exclude(id=request.user.id)
+
+        if query:
+            users = users.filter(
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(email__icontains=query)
+            )
+
+        if board_id:
+            from kanban.models import BoardMembership
+            board_members = BoardMembership.objects.filter(board_id=board_id).values_list('user_id', flat=True)
+            users = users.exclude(id__in=board_members)
+
+        users = users.order_by('first_name', 'last_name')[:20]
+        return Response([
+            {
+                "id": u.id,
+                "name": f"{u.first_name} {u.last_name}".strip(),
+                "email": u.email,
+                "avatar": getattr(u, 'avatar', ''),
+            } for u in users
+        ])
+
+
+# --- ADD USER TO BOARD ---
+class AddBoardMemberAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from kanban.models import Board, BoardMembership
+
+        board_id = request.data.get('board_id')
+        user_id = request.data.get('user_id')
+        role = request.data.get('role', 'member')  # default: member
+
+        if not board_id or not user_id:
+            return Response({'error': 'board_id and user_id required.'}, status=400)
+        try:
+            board = Board.objects.get(id=board_id)
+        except Board.DoesNotExist:
+            return Response({'error': 'Board not found.'}, status=404)
+
+        # Only allow owners or admins to add members!
+        try:
+            bm = BoardMembership.objects.get(board=board, user=request.user)
+        except BoardMembership.DoesNotExist:
+            return Response({'error': 'Not a board member.'}, status=403)
+        if bm.role not in ['owner', 'admin']:
+            return Response({'error': 'Only board owner or admin can add members.'}, status=403)
+
+        User = get_user_model()
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=404)
+
+        if BoardMembership.objects.filter(board=board, user=user).exists():
+            return Response({'error': 'User is already a member.'}, status=409)
+
+        if role not in ['member', 'admin']:
+            role = 'member'
+
+        BoardMembership.objects.create(board=board, user=user, role=role)
+        return Response({'success': True, 'message': 'User added to board.'})
+
+class UpdateBoardMemberRoleAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        board_id = request.data.get("board_id")
+        member_id = request.data.get("member_id")
+        role = request.data.get("role")
+
+        if not board_id or not member_id or not role:
+            return Response({"error": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            board = Board.objects.get(id=board_id)
+        except Board.DoesNotExist:
+            return Response({"error": "Board does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Only owner or admin can change roles
+        try:
+            acting_membership = BoardMembership.objects.get(board=board, user=request.user)
+        except BoardMembership.DoesNotExist:
+            return Response({"error": "Not a board member."}, status=status.HTTP_403_FORBIDDEN)
+
+        if acting_membership.role not in ["owner", "admin"]:
+            return Response({"error": "Only owner or admin can change roles."}, status=status.HTTP_403_FORBIDDEN)
+
+        # You cannot demote the only owner!
+        member_membership = BoardMembership.objects.filter(board=board, user_id=member_id).first()
+        if not member_membership:
+            return Response({"error": "That member is not part of this board."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Prevent removing the last owner
+        if member_membership.role == "owner" and role != "owner":
+            owner_count = BoardMembership.objects.filter(board=board, role="owner").count()
+            if owner_count <= 1:
+                return Response({"error": "Cannot remove the only owner!"}, status=status.HTTP_400_BAD_REQUEST)
+
+        member_membership.role = role
+        member_membership.save()
+
+        return Response({"message": "Role updated successfully!"})

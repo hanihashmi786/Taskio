@@ -1,63 +1,77 @@
-"use client";
-import { useState, useEffect } from "react";
-import { getLabels } from "../api/labels";
-import { X, Tag } from "lucide-react";
+"use client"
+import { useState } from "react"
+import { Check, X } from "lucide-react"
+import { PREDEFINED_LABELS } from "../utils/labels"
 
-const LabelSelector = ({ selectedLabels, onLabelsChange, onClose }) => {
-  const [labels, setLabels] = useState([]);
+const LabelSelector = ({ selectedLabels = [], onLabelsChange, onClose }) => {
+  const [searchTerm, setSearchTerm] = useState("")
 
-  useEffect(() => {
-    getLabels().then((res) => setLabels(res.data));
-  }, []);
+  const filteredLabels = PREDEFINED_LABELS.filter((label) =>
+    label.name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   const toggleLabel = (labelId) => {
-    if (selectedLabels.includes(labelId)) {
-      onLabelsChange(selectedLabels.filter((id) => id !== labelId));
+    const isSelected = selectedLabels.includes(labelId)
+    if (isSelected) {
+      onLabelsChange(selectedLabels.filter((id) => id !== labelId))
     } else {
-      onLabelsChange([...selectedLabels, labelId]);
+      onLabelsChange([...selectedLabels, labelId])
     }
-  };
+  }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/20 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-xl w-full max-w-sm relative">
-        <button
-          className="absolute top-3 right-3 p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded"
-          onClick={onClose}
-        >
-          <X className="w-5 h-5" />
-        </button>
-        <h3 className="mb-4 flex items-center gap-2 font-bold">
-          <Tag className="w-5 h-5" /> Pick Labels
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          {labels.map((label) => (
-            <button
-              key={label.id}
-              onClick={() => toggleLabel(label.id)}
-              className={`rounded py-2 px-3 text-sm flex items-center gap-2 border transition-colors ${
-                selectedLabels.includes(label.id)
-                  ? "bg-blue-100 border-blue-400 font-semibold"
-                  : "bg-gray-50 dark:bg-slate-700/30 border-gray-200"
-              }`}
-            >
-              <span
-                style={{
-                  background: label.color,
-                  color: label.textColor,
-                  borderRadius: 8,
-                  display: "inline-block",
-                  width: 18,
-                  height: 18,
-                }}
-              ></span>
-              {label.name}
-            </button>
-          ))}
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-800 rounded-xl shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <h3 className="text-lg font-semibold text-slate-100">Select Labels</h3>
+          <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-slate-400" />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="p-4 border-b border-slate-700">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search labels..."
+            className="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+          />
+        </div>
+
+        {/* Labels List */}
+        <div className="p-4 max-h-96 overflow-y-auto">
+          <div className="space-y-2">
+            {filteredLabels.map((label) => {
+              const isSelected = selectedLabels.includes(label.id)
+              return (
+                <button
+                  key={label.id}
+                  onClick={() => toggleLabel(label.id)}
+                  className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-700 transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-4 h-4 rounded-full ${label.color}`} />
+                    <span className="text-slate-200 font-medium">{label.name}</span>
+                  </div>
+                  {isSelected && <Check className="w-4 h-4 text-green-400" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-700">
+          <button onClick={onClose} className="w-full btn-primary">
+            Done ({selectedLabels.length} selected)
+          </button>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default LabelSelector;
+export default LabelSelector

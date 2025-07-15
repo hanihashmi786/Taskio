@@ -1,87 +1,230 @@
-from rest_framework import viewsets, permissions
-from .models import Board, List, Card, BoardMembership, Checklist, ChecklistItem, Comment, Label
-from .serializers import BoardSerializer, ListSerializer, CardSerializer, ChecklistSerializer, ChecklistItemSerializer, CommentSerializer, LabelSerializer
-class BoardViewSet(viewsets.ModelViewSet):
-    serializer_class = BoardSerializer
-    permission_classes = [permissions.IsAuthenticated]
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Board, List, Card, Label, Checklist, ChecklistItem, Comment, BoardMembership
+from .serializers import (
+    BoardSerializer, ListSerializer, CardSerializer,
+    LabelSerializer, ChecklistSerializer, ChecklistItemSerializer, CommentSerializer,
+)
+from django.shortcuts import get_object_or_404
 
-    def get_queryset(self):
-        return Board.objects.filter(members=self.request.user)
-    
-    def perform_create(self, serializer):
-        board = serializer.save(created_by=self.request.user)
-        board.members.add(self.request.user)  # Add creator as member
+# ------------------- BOARD -------------------
+class BoardAPI(APIView):
+    permission_classes = [IsAuthenticated]
 
-class ListViewSet(viewsets.ModelViewSet):
-    serializer_class = ListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    def get(self, request):
+        boards = Board.objects.filter(members=request.user)
+        serializer = BoardSerializer(boards, many=True)
+        return Response(serializer.data)
 
-    def get_queryset(self):
-        # Optionally filter by board with a query param
-        board_id = self.request.query_params.get("board")
-        qs = List.objects.all()
-        if board_id:
-            qs = qs.filter(board_id=board_id)
-        return qs
+    def post(self, request):
+        serializer = BoardSerializer(data=request.data)
+        if serializer.is_valid():
+            board = serializer.save(created_by=request.user)
+            # <--- Add this line:
+            BoardMembership.objects.create(board=board, user=request.user, role="owner")
+            return Response(BoardSerializer(board).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def perform_create(self, serializer):
-        # board must be sent from frontend
-        serializer.save()
 
-    def get_queryset(self):
-        queryset = List.objects.all()
-        board_id = self.request.query_params.get("board")
-        if board_id:
-            queryset = queryset.filter(board_id=board_id)
-        return queryset.order_by("order", "id")
+    def delete(self, request):
+        board_id = request.data.get('id') or request.query_params.get('id')
+        if not board_id:
+            return Response({'detail': 'Board id required.'}, status=status.HTTP_400_BAD_REQUEST)
+        board = get_object_or_404(Board, pk=board_id)
+        board.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-class CardViewSet(viewsets.ModelViewSet):
-    serializer_class = CardSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    queryset = Card.objects.all()
+# ------------------- LIST -------------------
+class ListAPI(APIView):
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        queryset = Card.objects.all()
-        list_id = self.request.query_params.get("list")
-        if list_id:
-            queryset = queryset.filter(list_id=list_id)
-        return queryset.order_by("order", "id")
+    def get(self, request):
+        board_id = request.query_params.get('board')
+        lists = List.objects.filter(board_id=board_id) if board_id else List.objects.all()
+        serializer = ListSerializer(lists, many=True)
+        return Response(serializer.data)
 
-class CardViewSet(viewsets.ModelViewSet):
-    serializer_class = CardSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    queryset = Card.objects.all()
+    def post(self, request):
+        serializer = ListSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def perform_create(self, serializer):
-        card = serializer.save()
+    def delete(self, request):
+        list_id = request.data.get('id') or request.query_params.get('id')
+        if not list_id:
+            return Response({'detail': 'List id required.'}, status=status.HTTP_400_BAD_REQUEST)
+        list_obj = get_object_or_404(List, pk=list_id)
+        list_obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-class ChecklistViewSet(viewsets.ModelViewSet):
-    serializer_class = ChecklistSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    queryset = Checklist.objects.all()
+# ------------------- CARD -------------------
+class CardAPI(APIView):
+    permission_classes = [IsAuthenticated]
 
-class ChecklistItemViewSet(viewsets.ModelViewSet):
-    serializer_class = ChecklistItemSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    queryset = ChecklistItem.objects.all()
+    def get(self, request):
+        list_id = request.query_params.get('list')
+        cards = Card.objects.filter(list_id=list_id) if list_id else Card.objects.all()
+        serializer = CardSerializer(cards, many=True)
+        return Response(serializer.data)
 
-class CommentViewSet(viewsets.ModelViewSet):
-    serializer_class = CommentSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    queryset = Comment.objects.all()
+    def post(self, request):
+        serializer = CardSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+    def put(self, request):
+        card_id = request.data.get("id")
+        card = get_object_or_404(Card, id=card_id)
+        serializer = CardSerializer(card, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class LabelViewSet(viewsets.ModelViewSet):
-    queryset = Label.objects.all()
-    serializer_class = LabelSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request):
+        card_id = request.data.get("id")
+        card = get_object_or_404(Card, id=card_id)
+        serializer = CardSerializer(card, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def get_queryset(self):
-        # Optionally, only return labels for boards the user is a member of
-        board_id = self.request.query_params.get("board")
-        qs = Label.objects.all()
-        if board_id:
-            qs = qs.filter(board_id=board_id)
-        return qs
+    def delete(self, request):
+        card_id = request.data.get('id') or request.query_params.get('id')
+        if not card_id:
+            return Response({'detail': 'Card id required.'}, status=status.HTTP_400_BAD_REQUEST)
+        card = get_object_or_404(Card, pk=card_id)
+        card.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+# ------------------- LABEL -------------------
+class LabelAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        board_id = request.query_params.get('board')
+        labels = Label.objects.filter(board_id=board_id) if board_id else Label.objects.all()
+        serializer = LabelSerializer(labels, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = LabelSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        label_id = request.data.get('id') or request.query_params.get('id')
+        if not label_id:
+            return Response({'detail': 'Label id required.'}, status=status.HTTP_400_BAD_REQUEST)
+        label = get_object_or_404(Label, pk=label_id)
+        label.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+# ------------------- CHECKLIST -------------------
+class ChecklistAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        card_id = request.query_params.get('card')
+        checklists = Checklist.objects.filter(card_id=card_id) if card_id else Checklist.objects.all()
+        serializer = ChecklistSerializer(checklists, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        data = request.data.copy()
+        data['card_id'] =  data['card']
+        data['card'] =  data['card']
+        serializer = ChecklistSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        checklist_id = request.data.get('id') or request.query_params.get('id')
+        if not checklist_id:
+            return Response({'detail': 'Checklist id required.'}, status=status.HTTP_400_BAD_REQUEST)
+        checklist = get_object_or_404(Checklist, pk=checklist_id)
+        checklist.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+# ------------------- CHECKLIST ITEM -------------------
+class ChecklistItemAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        checklist_id = request.query_params.get('checklist')
+        items = ChecklistItem.objects.filter(checklist_id=checklist_id) if checklist_id else ChecklistItem.objects.all()
+        serializer = ChecklistItemSerializer(items, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        # checklist_id must be passed!
+        serializer = ChecklistItemSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        item_id = request.data.get("id")
+        item = get_object_or_404(ChecklistItem, id=item_id)
+        serializer = ChecklistItemSerializer(item, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request):
+        item_id = request.data.get("id")
+        item = get_object_or_404(ChecklistItem, id=item_id)
+        serializer = ChecklistItemSerializer(item, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        item_id = request.data.get('id') or request.query_params.get('id')
+        if not item_id:
+            return Response({'detail': 'ChecklistItem id required.'}, status=status.HTTP_400_BAD_REQUEST)
+        item = get_object_or_404(ChecklistItem, pk=item_id)
+        item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+# ------------------- COMMENT -------------------
+class CommentAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        card_id = request.query_params.get('card')
+        comments = Comment.objects.filter(card_id=card_id) if card_id else Comment.objects.all()
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid():
+            # Save with user as author, and return author full name
+            comment = serializer.save(author=request.user)
+            data = serializer.data
+            data["author_name"] = f"{request.user.first_name} {request.user.last_name}".strip()
+            return Response(data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        comment_id = request.data.get('id') or request.query_params.get('id')
+        if not comment_id:
+            return Response({'detail': 'Comment id required.'}, status=status.HTTP_400_BAD_REQUEST)
+        comment = get_object_or_404(Comment, pk=comment_id)
+        comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

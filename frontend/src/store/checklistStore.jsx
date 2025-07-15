@@ -3,14 +3,26 @@ import {
   getChecklistItems,
   createChecklistItem,
   updateChecklistItem,
-  deleteChecklistItem
+  deleteChecklistItem,
+  getChecklists,
+  createChecklist,
 } from "../api/checklistItems";
 
 const useChecklistStore = create((set) => ({
   items: [],
+  checklists: [],
   fetchChecklist: async (cardId) => {
     const res = await getChecklistItems(cardId);
     set({ items: res.data });
+  },
+  fetchChecklists: async (cardId) => {
+    const res = await getChecklists(cardId);
+    set({ checklists: res.data });
+  },
+  addChecklist: async (data) => {
+    const res = await createChecklist(data);
+    set((state) => ({ checklists: [...state.checklists, res.data] }));
+    return res.data;
   },
   addChecklistItem: async (data) => {
     const res = await createChecklistItem(data);

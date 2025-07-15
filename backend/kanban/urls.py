@@ -1,13 +1,14 @@
-from rest_framework.routers import DefaultRouter
-from .views import BoardViewSet, ListViewSet, CardViewSet, ChecklistViewSet, ChecklistItemViewSet, CommentViewSet, LabelViewSet
+from django.urls import path
+from .views import (
+    BoardAPI, ListAPI, CardAPI, LabelAPI, ChecklistAPI, ChecklistItemAPI, CommentAPI
+)
 
-router = DefaultRouter()
-router.register(r'boards', BoardViewSet, basename='board')
-router.register(r'lists', ListViewSet, basename='list')
-router.register(r'cards', CardViewSet, basename='card')
-router.register(r'labels', LabelViewSet)
-router.register(r'checklists', ChecklistViewSet)
-router.register(r'checklist-items', ChecklistItemViewSet)
-router.register(r'comments', CommentViewSet)
-
-urlpatterns = router.urls
+urlpatterns = [
+    path('boards/', BoardAPI.as_view(), name='board-list'),
+    path('lists/', ListAPI.as_view(), name='list-list'),
+    path('cards/', CardAPI.as_view(), name='card-list'),
+    path('labels/', LabelAPI.as_view(), name='label-list'),
+    path('checklists/', ChecklistAPI.as_view(), name='checklist-list'),
+    path('checklist-items/', ChecklistItemAPI.as_view(), name='checklistitem-list'),
+    path('comments/', CommentAPI.as_view(), name='comment-list'),
+]

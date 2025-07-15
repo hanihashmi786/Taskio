@@ -1,66 +1,125 @@
 from rest_framework import serializers
-from .models import Board, List, Card, Checklist, ChecklistItem, Comment, BoardMembership, Label
+from .models import Board, List, Card, Checklist, ChecklistItem, Comment, Label, BoardMembership
 from django.contrib.auth import get_user_model
-
-User = get_user_model()
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ("id", "username", "email")
-
-class BoardMembershipSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
-    class Meta:
-        model = BoardMembership
-        fields = ['user', 'role', 'added_at']
 
 class ChecklistItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChecklistItem
-        fields = "__all__"
+        fields = ["id", "checklist", "text", "completed", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 class ChecklistSerializer(serializers.ModelSerializer):
-    items = ChecklistItemSerializer(many=True, read_only=True)
-
+    items = ChecklistItemSerializer(many=True, required=False)
     class Meta:
         model = Checklist
-        fields = "__all__"
+        fields = ["id", "card", "title", "items", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def create(self, validated_data):
+        items_data = validated_data.pop('items', [])
+        checklist = Checklist.objects.create(**validated_data)
+        for item_data in items_data:
+            ChecklistItem.objects.create(checklist=checklist, **item_data)
+        return checklist
 
 class CommentSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
+    author_name = serializers.CharField(source='author.username', read_only=True)
     class Meta:
         model = Comment
-        fields = "__all__"
+        fields = ["id", "card", "author", "author_name", "text", "created_at"]
+        read_only_fields = ["id", "author", "author_name", "created_at"]
+
+class CardSerializer(serializers.ModelSerializer):
+    checklists = ChecklistSerializer(many=True, required=False)
+    comments = CommentSerializer(many=True, required=False)
+    assignees = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(), required=False)
+    labels = serializers.PrimaryKeyRelatedField(many=True, queryset=Label.objects.all(), required=False)
+    class Meta:
+        model = Card
+        fields = [
+            "id", "list", "title", "description", "due_date", "order",
+            "assignees", "labels", "created_at", "checklists", "comments"
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def create(self, validated_data):
+        checklists_data = validated_data.pop('checklists', [])
+        comments_data = validated_data.pop('comments', [])
+        assignees = validated_data.pop('assignees', [])
+        labels = validated_data.pop('labels', [])
+        card = Card.objects.create(**validated_data)
+        card.assignees.set(assignees)
+        card.labels.set(labels)
+        for checklist_data in checklists_data:
+            items_data = checklist_data.pop('items', [])
+            checklist = Checklist.objects.create(card=card, **checklist_data)
+            for item_data in items_data:
+                ChecklistItem.objects.create(checklist=checklist, **item_data)
+        for comment_data in comments_data:
+            Comment.objects.create(card=card, **comment_data)
+        return card
+
+    def update(self, instance, validated_data):
+        checklists_data = validated_data.pop('checklists', [])
+        comments_data = validated_data.pop('comments', [])
+        assignees = validated_data.pop('assignees', None)
+        labels = validated_data.pop('labels', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if assignees is not None:
+            instance.assignees.set(assignees)
+        if labels is not None:
+            instance.labels.set(labels)
+
+        # Optionally handle updating checklists/comments here
+
+        return instance
+
+class ListSerializer(serializers.ModelSerializer):
+    cards = CardSerializer(many=True, read_only=True)
+    class Meta:
+        model = List
+        fields = ["id", "board", "title", "order", "created_at", "cards"]
+
+class BoardSerializer(serializers.ModelSerializer):
+    lists = serializers.SerializerMethodField()
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    members = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Board
+        fields = [
+            "id", "title", "description", "color", "icon",
+            "created_by", "created_at", "lists", "members"
+        ]
+
+    def get_lists(self, obj):
+        from .serializers import ListSerializer  # avoid circular import if needed
+        lists = obj.lists.all().order_by('order')
+        return ListSerializer(lists, many=True).data
+
+    def get_members(self, obj):
+        memberships = BoardMembership.objects.filter(board=obj)
+        return BoardMemberSerializer(memberships, many=True).data
 
 class LabelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Label
         fields = "__all__"
 
-class CardSerializer(serializers.ModelSerializer):
-    checklists = ChecklistSerializer(many=True, read_only=True)
-    comments = CommentSerializer(many=True, read_only=True)
-    assignees = UserSerializer(many=True, read_only=True)
-    labels = LabelSerializer(many=True, read_only=True)      # For GET (read)
-    label_ids = serializers.PrimaryKeyRelatedField(          # For POST/PUT
-        many=True, write_only=True, required=False, queryset=Label.objects.all(), source='labels'
-    )
+class BoardMemberSerializer(serializers.ModelSerializer):
+    first_name = serializers.SerializerMethodField()
+    avatar = serializers.CharField(source='user.avatar', default="", read_only=True)
+    email = serializers.CharField(source='user.email', default="", read_only=True)
+    id = serializers.IntegerField(source='user.id', read_only=True)
+    role = serializers.CharField(read_only=True)
 
     class Meta:
-        model = Card
-        fields = "__all__"
+        model = BoardMembership
+        fields = ['id', 'role', 'first_name', 'avatar', 'email']
 
-class ListSerializer(serializers.ModelSerializer):
-    cards = CardSerializer(many=True, read_only=True)
-    class Meta:
-        model = List
-        fields = "__all__"
-
-class BoardSerializer(serializers.ModelSerializer):
-    lists = ListSerializer(many=True, read_only=True)
-    memberships = BoardMembershipSerializer(source='boardmembership_set', many=True, read_only=True)
-
-    class Meta:
-        model = Board
-        fields = "__all__"
+    def get_first_name(self, obj):
+        return obj.user.first_name or obj.user.username or "No Name"

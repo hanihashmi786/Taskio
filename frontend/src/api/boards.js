@@ -25,4 +25,11 @@ export function getBoard(boardId) {
   return API.get(`boards/${boardId}/`);
 }
 
-    
+export function updateBoardMemberRole(boardId, memberId, role) {
+  // Adjust this endpoint path if your backend uses a different one
+  return API.post("/accounts/update-member-role/", {
+    board_id: boardId,
+    member_id: memberId,
+    role,
+  });
+}
