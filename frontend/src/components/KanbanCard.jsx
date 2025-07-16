@@ -1,7 +1,7 @@
 "use client"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Calendar, CheckSquare, MessageCircle, Clock, Users } from "lucide-react"
+import { Calendar, CheckSquare, MessageCircle, Clock, Users, Paperclip, Link as LinkIcon } from "lucide-react"
 import { getLabelById } from "../utils/labels"
 import useBoardStore from "../store/boardStore"
 import { useEffect, useState } from "react";
@@ -128,9 +128,9 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
               <img
                 key={member.id}
                 src={getAvatarUrl(member.avatar) || "/placeholder.svg"}
-                alt={`${(member.first_name || "") + " " + (member.last_name || "")}".trim() || member.email || "User"}`}
+                alt={`${(member.first_name || "") + " " + (member.last_name || "")}`.trim() || member.email || "User"}
                 className="w-5 h-5 rounded-full ring-2 ring-white dark:ring-slate-700 hover:z-10 transition-transform hover:scale-110"
-                title={`${(member.first_name || "") + " " + (member.last_name || "")}".trim() || member.email || "User"}`}
+                title={`${(member.first_name || "") + " " + (member.last_name || "")}`.trim() || member.email || "User"}
               />
             ))}
             {assignedMembers.length > 3 && (
@@ -187,6 +187,26 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
               <MessageCircle className="w-3 h-3" />
               <span className="font-medium">{card.comments.length}</span>
             </div>
+          )}
+
+          {/* Attachments */}
+          {card.attachments && card.attachments.length > 0 && (
+            <div className="flex items-center gap-1 text-gray-500 dark:text-slate-400">
+              <Paperclip className="w-3 h-3" />
+              <span className="font-medium">{card.attachments.length}</span>
+            </div>
+          )}
+
+          {/* URL */}
+          {card.url && (
+            <a
+              href={card.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-gray-500 dark:text-slate-400"
+            >
+              <LinkIcon className="w-3 h-3" />
+            </a>
           )}
         </div>
       </div>
