@@ -8,6 +8,7 @@ package-lock.json
 /test/*
 *.pyc
 deployment_guide.md
+deployment_guide2.md
 db.sqlite3
 *.pyo
 *.pyd
