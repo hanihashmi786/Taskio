@@ -7,6 +7,8 @@ w_chart.html
 package-lock.json
 /test/*
 *.pyc
+deployment_guide.md
+db.sqlite3
 *.pyo
 *.pyd
 __pycache__/
