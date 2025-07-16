@@ -10,7 +10,7 @@ import KanbanCard from "./KanbanCard"
 import AddCardForm from "./AddCardForm"
 import CardModal from "./CardModal"
 
-const KanbanList = ({ list, boardId, ...props }) => {
+const KanbanList = ({ list, boardId, onCardClick, allLists, ...props }) => {
   // List editing logic
   const { updateList, deleteList } = useListStore()
   const [isEditing, setIsEditing] = useState(false)

@@ -102,9 +102,21 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
 
       {/* Description Preview */}
       {card.description && (
-        <p className="text-xs text-gray-600 dark:text-slate-400 mb-3 leading-relaxed line-clamp-2">
-          {card.description}
-        </p>
+        <div 
+          className="card-description text-gray-600 dark:text-slate-400 mb-3 overflow-hidden"
+          style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}
+          dangerouslySetInnerHTML={{ 
+            __html: card.description.length > 200 
+              ? card.description.substring(0, 200) + '...' 
+              : card.description 
+          }}
+        />
       )}
 
       {/* Assigned Members */}

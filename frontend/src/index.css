@@ -186,3 +186,65 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Rich text content styles for cards */
+.card-description {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.card-description p {
+  margin: 0;
+  padding: 0;
+}
+
+.card-description strong,
+.card-description b {
+  font-weight: 600;
+}
+
+.card-description em,
+.card-description i {
+  font-style: italic;
+}
+
+.card-description u {
+  text-decoration: underline;
+}
+
+.card-description ul,
+.card-description ol {
+  margin: 0;
+  padding-left: 1rem;
+  list-style-position: outside;
+}
+
+.card-description ul {
+  list-style-type: disc;
+}
+
+.card-description ol {
+  list-style-type: decimal;
+}
+
+.card-description li {
+  margin: 0.125rem 0;
+}
+
+.card-description a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.card-description a:hover {
+  color: #1d4ed8;
+}
+
+/* Dark mode support for rich text */
+.dark .card-description a {
+  color: #60a5fa;
+}
+
+.dark .card-description a:hover {
+  color: #93c5fd;
+}

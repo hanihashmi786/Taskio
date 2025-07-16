@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import LabelSelector from "./LabelSelector" // Assuming this path is correct
+import LabelSelector from "./LabelSelector" // Corrected path
+import RichTextEditor from "./RichTextEditor" // Import the rich text editor
 import {
   X,
   Calendar,
@@ -16,16 +17,16 @@ import {
   FileText,
   Check,
   Loader2,
-  Type,
-  Bold,
-  Italic,
-  List,
-  Link,
-  Mail,
-  HelpCircle,
-  ChevronDown,
+  FileImage,
+  FileIcon as FilePdf,
+  FileSpreadsheet,
+  FileBarChart,
+  FileArchive,
+  FileAudio,
+  FileVideo,
+  Download,
 } from "lucide-react"
-import { getLabelById } from "../utils/labels" // Assuming this path is correct
+import { getLabelById } from "../utils/labels" // Corrected path
 import useBoardStore from "../store/boardStore" // Assuming this path is correct
 import useCardStore from "../store/cardStore" // Assuming this path is correct
 import useChecklistStore from "../store/checklistStore" // Assuming this path is correct
@@ -58,17 +59,17 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   } = useChecklistStore()
 
   const board = getCurrentBoard()
-  const { user: contextUser } = useApp();
-  let currentUser = contextUser || {};
-  let storedAuth = localStorage.getItem("trello-auth");
+  const { user: contextUser } = useApp()
+  let currentUser = contextUser || {}
+  let storedAuth = localStorage.getItem("trello-auth")
   if (!storedAuth) {
-    storedAuth = sessionStorage.getItem("trello-auth");
+    storedAuth = sessionStorage.getItem("trello-auth")
   }
   try {
     if (storedAuth) {
-      const parsed = JSON.parse(storedAuth).user;
+      const parsed = JSON.parse(storedAuth).user
       if (parsed) {
-        currentUser = { ...currentUser, ...parsed };
+        currentUser = { ...currentUser, ...parsed }
       }
     }
   } catch (e) {}
@@ -200,11 +201,12 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   }
 
   const toggleAssignee = (userId) => {
+    const currentAssignees = Array.isArray(formData.assignees) ? formData.assignees : []
     handleInputChange(
       "assignees",
-      formData.assignees.includes(userId)
-        ? formData.assignees.filter((id) => id !== userId)
-        : [...formData.assignees, userId],
+      currentAssignees.includes(userId)
+        ? currentAssignees.filter((id) => id !== userId)
+        : [...currentAssignees, userId],
     )
   }
 
@@ -268,11 +270,16 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
+    console.log("File selected:", file)
     if (!file) return
+    console.log("Starting upload for file:", file.name)
     setUploading(true)
     try {
+      console.log("Uploading attachment for card:", card.id)
       await uploadAttachment(card.id, file)
+      console.log("Upload successful, reloading attachments")
       await loadAttachments(card.id)
+      setHasChanges(true) // Trigger save button
     } catch (e) {
       console.error("Upload failed:", e)
     } finally {
@@ -286,6 +293,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     try {
       await deleteAttachment(id)
       await loadAttachments(card.id)
+      setHasChanges(true) // Trigger save button
     } catch (e) {
       console.error("Delete failed:", e)
     }
@@ -300,6 +308,59 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
       hour: "2-digit",
       minute: "2-digit",
     })
+  }
+
+  const formatBytes = (bytes, decimals = 2) => {
+    if (bytes === 0) return "0 Bytes"
+    const k = 1024
+    const dm = decimals < 0 ? 0 : decimals
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i]
+  }
+
+  const getFileIcon = (filename) => {
+    const ext = filename.split(".").pop()?.toLowerCase()
+    switch (ext) {
+      case "jpg":
+      case "jpeg":
+      case "png":
+      case "gif":
+      case "webp":
+      case "svg":
+        return <FileImage className="w-5 h-5 text-blue-500" />
+      case "pdf":
+        return <FilePdf className="w-5 h-5 text-red-500" />
+      case "doc":
+      case "docx":
+        return <FileText className="w-5 h-5 text-blue-700" />
+      case "xls":
+      case "xlsx":
+        return <FileSpreadsheet className="w-5 h-5 text-green-500" />
+      case "ppt":
+      case "pptx":
+        return <FileBarChart className="w-5 h-5 text-orange-500" />
+      case "zip":
+      case "rar":
+      case "7z":
+        return <FileArchive className="w-5 h-5 text-purple-500" />
+      case "mp3":
+      case "wav":
+      case "ogg":
+        return <FileAudio className="w-5 h-5 text-yellow-500" />
+      case "mp4":
+      case "mov":
+      case "avi":
+      case "webm":
+        return <FileVideo className="w-5 h-5 text-pink-500" />
+      default:
+        return <FileText className="w-5 h-5 text-gray-500" />
+    }
+  }
+
+  const isImageFile = (filename) => {
+    const ext = filename.split(".").pop()?.toLowerCase()
+    return ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext)
   }
 
   if (!isOpen || !card) return null
@@ -385,55 +446,24 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
             <div className="p-6 flex-1">
               {activeTab === "details" && (
                 <div className="space-y-6">
-                  {/* Description - Refactored */}
+                  {/* Description - Updated with Rich Text Editor */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
                       Description
                     </label>
-                    <div className="border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden">
-                      {/* Toolbar */}
-                      <div className="flex items-center justify-between bg-gray-100 dark:bg-slate-900 border-b border-gray-300 dark:border-slate-600 p-2">
-                        <div className="flex items-center gap-2">
-                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400 flex items-center gap-1">
-                            <Type className="w-4 h-4" />
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
-                          <div className="w-px h-6 bg-gray-200 dark:bg-slate-700" />
-                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
-                            <Bold className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
-                            <Italic className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
-                            <List className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
-                            <Link className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
-                            <Paperclip className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
-                            <Mail className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
-                            <HelpCircle className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      {/* Textarea */}
-                      <textarea
-                        value={formData.description || ""}
-                        onChange={(e) => handleInputChange("description", e.target.value)}
-                        className="w-full p-4 focus:outline-none focus:ring-0 border-none bg-white dark:bg-slate-800 text-gray-900 dark:text-white resize-none min-h-[150px]"
-                        placeholder="Add a description..."
-                      />
+                    <RichTextEditor
+                      value={formData.description || ""}
+                      onChange={(html) => {
+                        console.log("Description changed:", html)
+                        handleInputChange("description", html)
+                      }}
+                      placeholder="Add a description..."
+                      disabled={false}
+                      className="w-full"
+                    />
+                    <div className="text-xs text-gray-500 mt-1">
+                      isEditing: {isEditing ? "true" : "false"} | 
+                      Description length: {(formData.description || "").length}
                     </div>
                   </div>
 
@@ -523,18 +553,13 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                       <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Attachments</label>
                       <button
                         onClick={handleUploadClick}
-                        disabled={!isEditing || uploading}
+                        disabled={uploading}
                         className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 disabled:opacity-50 transition-colors"
                       >
                         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
-                        {uploading ? "Uploading" : "Add"}
+                        {uploading ? "Uploading..." : "Add Attachment"}
                       </button>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
+                      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                     </div>
 
                     {loadingAttachments ? (
@@ -542,30 +567,73 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                       </div>
                     ) : attachments.length > 0 ? (
-                      <ul className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {attachments.map((att) => (
-                          <li key={att.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
-                            <a
-                              href={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="underline text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-                            >
-                              {att.file.split("/").pop()}
-                            </a>
-                            {att.uploaded_by === currentUser.username && isEditing && (
-                              <button 
-                                onClick={() => handleDeleteAttachment(att.id)} 
-                                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-500" />
-                              </button>
+                          <div
+                            key={att.id}
+                            className="group relative overflow-hidden hover:shadow-md transition-all duration-200"
+                          >
+                            {isImageFile(att.file) && (
+                              <div className="relative w-full h-32 bg-gray-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
+                                <img
+                                  src={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
+                                  alt={att.file.split("/").pop()}
+                                  className="object-cover w-full h-full"
+                                />
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <a
+                                    href={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 rounded-full bg-white/80 text-gray-800 hover:bg-white transition-colors"
+                                    title="View attachment"
+                                  >
+                                    <Download className="w-5 h-5" />
+                                  </a>
+                                </div>
+                              </div>
                             )}
-                          </li>
+                            <div className="p-4 flex flex-col gap-2">
+                              <div className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                                {getFileIcon(att.file)}
+                                <span className="truncate">{att.file.split("/").pop()}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
+                                <span>{att.file_size ? formatBytes(att.file_size) : "N/A"}</span>
+                                <span>{att.uploaded_at_formatted || "N/A"}</span>
+                              </div>
+                              <div className="flex justify-end gap-2 mt-2">
+                                <a
+                                  href={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-600 dark:text-slate-300 transition-colors"
+                                  title="Download attachment"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </a>
+                                {att.uploaded_by === currentUser.username && isEditing && (
+                                  <button
+                                    onClick={() => handleDeleteAttachment(att.id)}
+                                    className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-colors"
+                                    title="Delete attachment"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         ))}
-                      </ul>
+                      </div>
                     ) : (
-                      <p className="text-sm text-gray-500 dark:text-slate-400">No attachments yet</p>
+                      <div className="text-center py-8 border border-dashed border-gray-300 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-700/30">
+                        <Paperclip className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
+                        <p className="text-gray-500 dark:text-slate-400">No attachments yet</p>
+                        <p className="text-sm text-gray-400 dark:text-slate-500">
+                          Click "Add Attachment" to upload files
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -743,25 +811,27 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                   {/* Comments List */}
                   <div className="space-y-4">
                     {cardComments.map((comment) => {
-                      const avatarUrl = getAvatarUrl(comment.author?.avatar) || "/placeholder.svg";
-                      const displayName = ((comment.author?.first_name || "") + " " + (comment.author?.last_name || "")).trim() || comment.author?.username || comment.author?.email || "User";
-                      console.log("Comment author:", comment.author);
-                      console.log("Comment avatar URL:", avatarUrl);
+                      const avatarUrl = getAvatarUrl(comment.author?.avatar) || "/placeholder.svg"
+                      const displayName =
+                        ((comment.author?.first_name || "") + " " + (comment.author?.last_name || "")).trim() ||
+                        comment.author?.username ||
+                        comment.author?.email ||
+                        "User"
+                      console.log("Comment author:", comment.author)
+                      console.log("Comment avatar URL:", avatarUrl)
                       return (
                         <div
                           key={comment.id}
                           className="flex gap-3 p-4 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600"
                         >
                           <img
-                            src={avatarUrl}
+                            src={avatarUrl || "/placeholder.svg"}
                             alt={displayName}
                             className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
                           />
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {displayName}
-                              </span>
+                              <span className="font-medium text-gray-900 dark:text-white">{displayName}</span>
                               <span className="text-xs text-gray-500 dark:text-slate-400">
                                 {formatDate(comment.created_at)}
                               </span>
@@ -769,7 +839,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                             <p className="text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{comment.text}</p>
                           </div>
                         </div>
-                      );
+                      )
                     })}
 
                     {cardComments.length === 0 && (

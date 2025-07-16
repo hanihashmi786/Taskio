@@ -32,10 +32,26 @@ class CommentSerializer(serializers.ModelSerializer):
 
 class AttachmentSerializer(serializers.ModelSerializer):
     uploaded_by = serializers.StringRelatedField(read_only=True)
+    file_size = serializers.SerializerMethodField()
+    uploaded_at_formatted = serializers.SerializerMethodField()
+
     class Meta:
         model = Attachment
-        fields = ["id", "card", "file", "uploaded_by", "uploaded_at"]
+        fields = ["id", "card", "file", "uploaded_by", "uploaded_at", "file_size", "uploaded_at_formatted"]
         read_only_fields = ["id", "uploaded_by", "uploaded_at"]
+
+    def get_file_size(self, obj):
+        try:
+            if obj.file and hasattr(obj.file, 'size'):
+                return obj.file.size
+            return None
+        except:
+            return None
+
+    def get_uploaded_at_formatted(self, obj):
+        if obj.uploaded_at:
+            return obj.uploaded_at.strftime("%Y-%m-%d %H:%M")
+        return None
 
 class CardSerializer(serializers.ModelSerializer):
     checklists = ChecklistSerializer(many=True, required=False)
