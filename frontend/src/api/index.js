@@ -21,3 +21,10 @@ API.interceptors.request.use((config) => {
 });
 
 export default API;
+
+// Helper for file uploads
+export function uploadFile(url, formData) {
+  return API.post(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}

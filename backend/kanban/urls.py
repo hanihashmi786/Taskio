@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    BoardAPI, ListAPI, CardAPI, LabelAPI, ChecklistAPI, ChecklistItemAPI, CommentAPI
+    BoardAPI, ListAPI, CardAPI, LabelAPI, ChecklistAPI, ChecklistItemAPI, CommentAPI, AttachmentAPI
 )
 
 urlpatterns = [
@@ -15,4 +15,5 @@ urlpatterns = [
     path('checklist-items/', ChecklistItemAPI.as_view(), name='checklistitem-list'),
     path('checklist-items/<int:id>/', ChecklistItemAPI.as_view(), name='checklistitem-detail'),
     path('comments/', CommentAPI.as_view(), name='comment-list'),
+    path('attachments/', AttachmentAPI.as_view(), name='attachment-list'),
 ]

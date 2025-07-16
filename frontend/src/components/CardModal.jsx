@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import LabelSelector from "./LabelSelector" // Assuming this path is correct
 import {
   X,
@@ -30,6 +30,7 @@ import useBoardStore from "../store/boardStore" // Assuming this path is correct
 import useCardStore from "../store/cardStore" // Assuming this path is correct
 import useChecklistStore from "../store/checklistStore" // Assuming this path is correct
 import { useApp } from "../context/AppContext"
+import { getAttachments, uploadAttachment, deleteAttachment } from "../api/attachments"
 
 const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || ""
 
@@ -94,6 +95,12 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   const [addingChecklist, setAddingChecklist] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
+  // Attachment states
+  const [attachments, setAttachments] = useState([])
+  const [loadingAttachments, setLoadingAttachments] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef(null)
+
   useEffect(() => {
     if (card) {
       const data = {
@@ -139,6 +146,23 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     fetchComments(card.id)
     fetchChecklists(card.id)
   }, [card?.id, fetchChecklist, fetchComments, fetchChecklists])
+
+  // Load attachments when card changes
+  useEffect(() => {
+    if (card?.id) loadAttachments(card.id)
+  }, [card?.id])
+
+  const loadAttachments = async (cardId) => {
+    setLoadingAttachments(true)
+    try {
+      const { data } = await getAttachments(cardId)
+      setAttachments(data)
+    } catch (e) {
+      console.error("Error loading attachments:", e)
+    } finally {
+      setLoadingAttachments(false)
+    }
+  }
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -236,6 +260,34 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
       setNewComment("")
     } catch (error) {
       console.error("Error adding comment:", error)
+    }
+  }
+
+  // Attachment handlers
+  const handleUploadClick = () => fileInputRef.current?.click()
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      await uploadAttachment(card.id, file)
+      await loadAttachments(card.id)
+    } catch (e) {
+      console.error("Upload failed:", e)
+    } finally {
+      setUploading(false)
+      e.target.value = null
+    }
+  }
+
+  const handleDeleteAttachment = async (id) => {
+    if (!window.confirm("Delete this attachment?")) return
+    try {
+      await deleteAttachment(id)
+      await loadAttachments(card.id)
+    } catch (e) {
+      console.error("Delete failed:", e)
     }
   }
 
@@ -464,6 +516,58 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                       />
                     </div>
                   )}
+
+                  {/* Attachments */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Attachments</label>
+                      <button
+                        onClick={handleUploadClick}
+                        disabled={!isEditing || uploading}
+                        className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 disabled:opacity-50 transition-colors"
+                      >
+                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+                        {uploading ? "Uploading" : "Add"}
+                      </button>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </div>
+
+                    {loadingAttachments ? (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                      </div>
+                    ) : attachments.length > 0 ? (
+                      <ul className="space-y-2">
+                        {attachments.map((att) => (
+                          <li key={att.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
+                            <a
+                              href={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                            >
+                              {att.file.split("/").pop()}
+                            </a>
+                            {att.uploaded_by === currentUser.username && isEditing && (
+                              <button 
+                                onClick={() => handleDeleteAttachment(att.id)} 
+                                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-slate-400">No attachments yet</p>
+                    )}
+                  </div>
                 </div>
               )}
 

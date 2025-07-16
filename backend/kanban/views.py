@@ -2,10 +2,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Board, List, Card, Label, Checklist, ChecklistItem, Comment, BoardMembership
+from .models import Board, List, Card, Label, Checklist, ChecklistItem, Comment, BoardMembership, Attachment
 from .serializers import (
     BoardSerializer, ListSerializer, CardSerializer,
-    LabelSerializer, ChecklistSerializer, ChecklistItemSerializer, CommentSerializer,
+    LabelSerializer, ChecklistSerializer, ChecklistItemSerializer, CommentSerializer, AttachmentSerializer,
 )
 from django.shortcuts import get_object_or_404
 
@@ -265,4 +265,39 @@ class CommentAPI(APIView):
             return Response({'detail': 'Comment id required.'}, status=status.HTTP_400_BAD_REQUEST)
         comment = get_object_or_404(Comment, pk=comment_id)
         comment.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+# ------------------- ATTACHMENT -------------------
+class AttachmentAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        card_id = request.query_params.get('card')
+        if not card_id:
+            return Response({'detail': 'card id required'}, status=status.HTTP_400_BAD_REQUEST)
+        attachments = Attachment.objects.filter(card_id=card_id)
+        serializer = AttachmentSerializer(attachments, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        card_id = request.data.get('card')
+        file = request.FILES.get('file')
+        if not card_id or not file:
+            return Response({'detail': 'card and file required'}, status=status.HTTP_400_BAD_REQUEST)
+        data = {'card': card_id, 'file': file}
+        serializer = AttachmentSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save(uploaded_by=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request):
+        attachment_id = request.data.get('id') or request.query_params.get('id')
+        if not attachment_id:
+            return Response({'detail': 'Attachment id required.'}, status=status.HTTP_400_BAD_REQUEST)
+        attachment = get_object_or_404(Attachment, pk=attachment_id)
+        if attachment.uploaded_by != request.user:
+            return Response({'detail': 'Not allowed.'}, status=status.HTTP_403_FORBIDDEN)
+        attachment.file.delete(save=False)
+        attachment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

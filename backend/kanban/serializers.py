@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Board, List, Card, Checklist, ChecklistItem, Comment, Label, BoardMembership
+from .models import Board, List, Card, Checklist, ChecklistItem, Comment, Label, BoardMembership, Attachment
 from django.contrib.auth import get_user_model
 from accounts.serializers import UserProfileSerializer
 
@@ -30,18 +30,33 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = ["id", "card", "author", "text", "created_at"]
         read_only_fields = ["id", "author", "created_at"]
 
+class AttachmentSerializer(serializers.ModelSerializer):
+    uploaded_by = serializers.StringRelatedField(read_only=True)
+    class Meta:
+        model = Attachment
+        fields = ["id", "card", "file", "uploaded_by", "uploaded_at"]
+        read_only_fields = ["id", "uploaded_by", "uploaded_at"]
+
 class CardSerializer(serializers.ModelSerializer):
     checklists = ChecklistSerializer(many=True, required=False)
     comments = CommentSerializer(many=True, required=False)
     assignees = serializers.PrimaryKeyRelatedField(many=True, queryset=get_user_model().objects.all(), required=False)
     labels = serializers.PrimaryKeyRelatedField(many=True, queryset=Label.objects.all(), required=False)
+    attachments = serializers.SerializerMethodField()
+
     class Meta:
         model = Card
         fields = [
             "id", "list", "title", "description", "due_date", "order",
-            "assignees", "labels", "created_at", "checklists", "comments"
+            "assignees", "labels", "created_at", "checklists", "comments", "attachments"
         ]
         read_only_fields = ["id", "created_at"]
+
+    def get_attachments(self, obj):
+        try:
+            return AttachmentSerializer(obj.attachments.all(), many=True).data
+        except:
+            return []
 
     def create(self, validated_data):
         checklists_data = validated_data.pop('checklists', [])

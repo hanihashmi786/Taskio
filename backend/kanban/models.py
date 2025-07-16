@@ -67,3 +67,9 @@ class Label(models.Model):
 
     def __str__(self):
         return self.name
+
+class Attachment(models.Model):
+    card = models.ForeignKey(Card, related_name="attachments", on_delete=models.CASCADE)
+    file = models.FileField(upload_to="attachments/%Y/%m/%d/")
+    uploaded_by = models.ForeignKey(User, related_name="attachments", on_delete=models.CASCADE)
+    uploaded_at = models.DateTimeField(default=timezone.now)
