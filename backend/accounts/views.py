@@ -110,9 +110,11 @@ class UserSearchAPIView(APIView):
         return Response([
             {
                 "id": u.id,
-                "name": f"{u.first_name} {u.last_name}".strip(),
+                "first_name": u.first_name,
+                "last_name": u.last_name,
                 "email": u.email,
-                "avatar": getattr(u, 'avatar', ''),
+                # Fix: always return avatar as URL or empty string
+                "avatar": u.avatar.url if getattr(u, 'avatar', None) and hasattr(u.avatar, 'url') else "",
             } for u in users
         ])
 

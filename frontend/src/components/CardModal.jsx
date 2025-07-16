@@ -22,6 +22,17 @@ import useBoardStore from "../store/boardStore"
 import useCardStore from "../store/cardStore"
 import useChecklistStore from "../store/checklistStore"
 
+const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || "";
+
+function getAvatarUrl(avatar) {
+  if (!avatar) return "/placeholder.svg";
+  if (avatar.startsWith("http")) return avatar;
+  if (avatar.startsWith("/media/")) return MEDIA_URL.replace(/\/$/, "") + avatar;
+  if (avatar.startsWith("media/")) return MEDIA_URL.replace(/\/$/, "") + "/" + avatar;
+  if (avatar.startsWith("avatars/")) return MEDIA_URL.replace(/\/$/, "") + "/media/" + avatar;
+  return avatar;
+}
+
 const CardModal = ({ isOpen, onClose, card, listId }) => {
   const { getCurrentBoard } = useBoardStore()
   const { updateCard, deleteCard, comments, fetchComments, addComment } = useCardStore()
@@ -552,7 +563,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                   <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-4 border border-gray-200 dark:border-slate-600">
                     <div className="flex gap-3">
                       <img
-                        src="/placeholder.svg"
+                        src={getAvatarUrl(/* you may want to use the current user's avatar here if available */)}
                         alt="You"
                         className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
                       />
@@ -585,7 +596,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         className="flex gap-3 p-4 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600"
                       >
                         <img
-                          src={comment.author?.avatar || "/placeholder.svg"}
+                          src={getAvatarUrl(comment.author?.avatar)}
                           alt={comment.author?.first_name || "User"}
                           className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
                         />
