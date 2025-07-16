@@ -11,6 +11,8 @@ backend/core/__pycache__/urls.cpython-311.pyc
 frontend/package-lock.json
 backend/core/__pycache__/wsgi.cpython-311.pyc
 .gitignore
+deployment_guide.md
+db.sqlite3
 backend/core/__pycache__/settings.cpython-311.pyc
 frontend/package-lock.json
 frontend/package.json
@@ -71,3 +73,92 @@ __pycache__/
 *.pyo
 *.egg-info/
 backend/accounts/__pycache__/serializers.cpython-311.pyc
+# Python-related files
+ngrok.exe
+ngrok.yml
+ruff.toml
+mm.bat
+w_chart.html
+package-lock.json
+/test/*
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.env
+*.venv
+venv/
+env/
+ENV/
+venv.bak/
+env.bak/
+
+# Keep management command folders but ignore their contents except __init__.py
+**/management/commands/*
+!**/management/commands/
+!**/management/commands/__init__.py
+!**/dynamo_manager/management/commands/*
+
+scripts/
+# But do NOT ignore the 'callloom_permissions/management/commands' directory
+!callloom_permissions/management/
+!logs/management/
+config.json
+fake.py
+config - Copy.json
+
+# Django-related files
+debug.log
+db.sqlite3
+*.log
+staticfiles/
+media/
+dist/
+
+# Ignore migrations files but keep the folder
+**/migrations/*
+!**/migrations/
+!**/migrations/__init__.py
+
+# If you're using macOS
+.DS_Store
+
+# Ignore local environment files
+.env
+
+# Ignore virtual environments
+.vscode/
+.idea/
+.PyCharm/
+
+# celery and celery beat
+celerybeat-schedule
+celerybeat.pid
+celerybeat*
+a1_data.csv
+a2_data.csv
+a3_data.csv
+a6_data.csv
+aca_data.csv
+bath_remodel_campaign_2_data.csv
+bath_remodel_campaign_data.csv
+roofing_campaign78_data.csv
+roofing_campaign89_data.csv
+walk_in_tub_campaign_data.csv
+windows_not_required_2.csv
+windows_not_required.csv
+
+hsaTest
+generate_test_data.py
+test_auto_recharge.py
+test_auto_payment.py
+email_templates
+api.md
+
+rm.bat
+xx.py
+
+.cspell
+hsa_webhook
+log_webhook
+config-copy.json
