@@ -1,8 +1,8 @@
-"use client";
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, User, UserPlus } from "lucide-react";
-import { signup } from "../../api/auth";  // <-- Use the centralized API function
+"use client"
+import { useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
+import { Eye, EyeOff, Mail, Lock, User, UserPlus } from "lucide-react"
+import { signup } from "../../api/auth" // <-- Use the centralized API function
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -11,46 +11,46 @@ const Signup = () => {
     email: "",
     password: "",
     confirmPassword: "",
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const navigate = useNavigate()
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
-    });
-    setError("");
-  };
+    })
+    setError("")
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
+    e.preventDefault()
+    setIsLoading(true)
+    setError("")
 
     // Validation
     if (!formData.firstName.trim()) {
-      setError("First name is required");
-      setIsLoading(false);
-      return;
+      setError("First name is required")
+      setIsLoading(false)
+      return
     }
     if (!formData.lastName.trim()) {
-      setError("Last name is required");
-      setIsLoading(false);
-      return;
+      setError("Last name is required")
+      setIsLoading(false)
+      return
     }
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      setIsLoading(false);
-      return;
+      setError("Passwords do not match")
+      setIsLoading(false)
+      return
     }
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      setIsLoading(false);
-      return;
+      setError("Password must be at least 6 characters long")
+      setIsLoading(false)
+      return
     }
 
     try {
@@ -61,33 +61,51 @@ const Signup = () => {
         email: formData.email,
         password: formData.password,
         confirmPassword: formData.confirmPassword,
-      };
-      await signup(payload);
-      navigate("/signin");
+      }
+      await signup(payload)
+      navigate("/signin")
     } catch (err) {
       if (err.response) {
-        if (err.response.data && err.response.data.error) {
-          setError(err.response.data.error);
-        } else if (typeof err.response.data === "string") {
-          setError(err.response.data);
-        } else if (typeof err.response.data === "object") {
-          const firstErrorKey = Object.keys(err.response.data)[0];
-          setError(
-            (firstErrorKey && err.response.data[firstErrorKey]) ||
-              "An error occurred. Please try again."
-          );
-        } else {
-          setError("An error occurred. Please try again.");
+        const backendErrors = err.response.data
+        let errorMessage = "An error occurred. Please try again."
+
+        if (typeof backendErrors === "string") {
+          errorMessage = backendErrors
+        } else if (typeof backendErrors === "object") {
+          // Check for specific field errors (e.g., { email: ["..."], username: ["..."] })
+          const fieldErrors = Object.keys(backendErrors)
+            .map((key) => {
+              const value = backendErrors[key]
+              if (Array.isArray(value)) {
+                return `${key}: ${value.join(", ")}`
+              }
+              return `${key}: ${value}`
+            })
+            .join("; ")
+
+          if (fieldErrors) {
+            errorMessage = fieldErrors
+          } else if (backendErrors.detail) {
+            // Common for DRF non-field errors
+            errorMessage = backendErrors.detail
+          } else if (backendErrors.non_field_errors) {
+            // Another common DRF pattern
+            errorMessage = backendErrors.non_field_errors.join(", ")
+          } else if (backendErrors.error) {
+            // General error field
+            errorMessage = backendErrors.error
+          }
         }
+        setError(errorMessage)
       } else if (err.request) {
-        setError("No response from backend. Is your server running?");
+        setError("No response from backend. Is your server running?")
       } else {
-        setError("An unknown error occurred.");
+        setError("An unknown error occurred.")
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 py-12 px-4 sm:px-6 lg:px-8">
@@ -100,7 +118,6 @@ const Signup = () => {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create your account</h2>
           <p className="text-gray-600 dark:text-slate-400">Join TaskFlow and start organizing your projects</p>
         </div>
-
         {/* Main Form Card */}
         <div className="bg-white dark:bg-slate-800 shadow-xl rounded-2xl p-8 border border-gray-200 dark:border-slate-700">
           <form className="space-y-6" onSubmit={handleSubmit}>
@@ -109,7 +126,6 @@ const Signup = () => {
                 {error}
               </div>
             )}
-
             <div className="space-y-5">
               {/* First Name and Last Name Row */}
               <div className="grid grid-cols-2 gap-4">
@@ -162,7 +178,6 @@ const Signup = () => {
                   </div>
                 </div>
               </div>
-
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Email address
@@ -184,7 +199,6 @@ const Signup = () => {
                   />
                 </div>
               </div>
-
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Password
@@ -217,7 +231,6 @@ const Signup = () => {
                   </button>
                 </div>
               </div>
-
               <div>
                 <label
                   htmlFor="confirmPassword"
@@ -254,7 +267,6 @@ const Signup = () => {
                 </div>
               </div>
             </div>
-
             <div className="flex items-start">
               <input
                 id="terms"
@@ -280,7 +292,6 @@ const Signup = () => {
                 </Link>
               </label>
             </div>
-
             <button
               type="submit"
               disabled={isLoading}
@@ -295,7 +306,6 @@ const Signup = () => {
                 </>
               )}
             </button>
-
             <div className="text-center">
               <span className="text-sm text-gray-600 dark:text-slate-400">
                 Already have an account?{" "}
@@ -317,7 +327,7 @@ const Signup = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default Signup;
+export default Signup

@@ -4,6 +4,18 @@ import { CSS } from "@dnd-kit/utilities"
 import { Calendar, CheckSquare, MessageCircle, Clock, Users } from "lucide-react"
 import { getLabelById } from "../utils/labels"
 import useBoardStore from "../store/boardStore"
+import { useEffect, useState } from "react";
+import useChecklistStore from "../store/checklistStore";
+
+function getAvatarUrl(avatar) {
+  const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || ""
+  if (!avatar) return "/placeholder.svg"
+  if (avatar.startsWith("http")) return avatar
+  if (avatar.startsWith("/media/")) return MEDIA_URL.replace(/\/$/, "") + avatar
+  if (avatar.startsWith("media/")) return MEDIA_URL.replace(/\/$/, "") + "/" + avatar
+  if (avatar.startsWith("avatars/")) return MEDIA_URL.replace(/\/$/, "") + "/media/" + avatar
+  return avatar
+}
 
 const KanbanCard = ({ card, onClick, isDragging = false }) => {
   const { getCurrentBoard } = useBoardStore()
@@ -32,8 +44,20 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
     : []
 
   const isOverdue = card.due_date && new Date(card.due_date) < new Date()
-  const completedTasks = Array.isArray(card.checklist) ? card.checklist.filter((item) => item.completed).length : 0
-  const totalTasks = Array.isArray(card.checklist) ? card.checklist.length : 0
+  const { fetchChecklists, checklists, items: checklistItems } = useChecklistStore();
+  const [cardChecklistItems, setCardChecklistItems] = useState([]);
+
+  useEffect(() => {
+    fetchChecklists(card.id);
+  }, [card.id, fetchChecklists]);
+
+  useEffect(() => {
+    const cardChecklists = checklists.filter(cl => cl.card === card.id);
+    setCardChecklistItems(checklistItems.filter(item => cardChecklists.some(cl => cl.id === item.checklist)));
+  }, [checklists, checklistItems, card.id]);
+
+  const completedTasks = cardChecklistItems.filter(item => item.completed).length;
+  const totalTasks = cardChecklistItems.length;
 
   // Find assigned members (if board data is loaded)
   const assignedMembers =
@@ -91,10 +115,10 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
             {assignedMembers.slice(0, 3).map((member) => (
               <img
                 key={member.id}
-                src={member.avatar || "/placeholder.svg"}
-                alt={`${member.first_name} ${member.last_name}`}
+                src={getAvatarUrl(member.avatar) || "/placeholder.svg"}
+                alt={`${(member.first_name || "") + " " + (member.last_name || "")}".trim() || member.email || "User"}`}
                 className="w-5 h-5 rounded-full ring-2 ring-white dark:ring-slate-700 hover:z-10 transition-transform hover:scale-110"
-                title={`${member.first_name} ${member.last_name}`}
+                title={`${(member.first_name || "") + " " + (member.last_name || "")}".trim() || member.email || "User"}`}
               />
             ))}
             {assignedMembers.length > 3 && (
@@ -107,7 +131,9 @@ const KanbanCard = ({ card, onClick, isDragging = false }) => {
           </div>
           <span className="text-xs text-gray-600 dark:text-slate-400 ml-1">
             {assignedMembers.length === 1
-              ? `${assignedMembers[0].first_name} ${assignedMembers[0].last_name}`
+              ? ((assignedMembers[0].first_name || "") + " " + (assignedMembers[0].last_name || "")).trim() ||
+                assignedMembers[0].email ||
+                "User"
               : `${assignedMembers.length} members`}
           </span>
         </div>

@@ -4,14 +4,29 @@ import { createContext, useContext, useReducer, useEffect } from "react"
 
 const AppContext = createContext()
 
+function getStoredUser() {
+  let user = null;
+  try {
+    let stored = localStorage.getItem("trello-auth");
+    if (!stored) {
+      stored = sessionStorage.getItem("trello-auth");
+    }
+    if (stored) {
+      user = JSON.parse(stored).user;
+    }
+  } catch (e) {}
+  return user;
+}
+
 // Initial state
 const initialState = {
   theme: "light",
-  user: {
-    name: "",
+  user: getStoredUser() || {
+    id: null,
+    first_name: "",
+    last_name: "",
     email: "",
-    username: "",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face",
+    avatar: "/placeholder.svg",
   },
   boards: [],
   currentBoard: null,

@@ -16,7 +16,7 @@ function getAvatarUrl(avatar) {
 }
 
 const BoardMembers = ({ boardId, onClose }) => {
-  const { getCurrentBoard, removeMemberFromBoard, updateMemberRole, canEditBoard } = useBoardStore()
+  const { getCurrentBoard, removeMemberFromBoard, updateMemberRole, canEditBoard, fetchBoards } = useBoardStore()
   const [showAddMember, setShowAddMember] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState([])
@@ -74,7 +74,7 @@ const BoardMembers = ({ boardId, onClose }) => {
       setSuccess("User added to board!")
       setSearchResults((prev) => prev.filter(u => u.id !== userId))
       setSearchTerm("")
-      setRefresh(r => !r)
+      await fetchBoards(); // Refresh boards so members list updates instantly
     } catch (error) {
       console.error("addBoardMember API error:", error?.response?.data || error)
       setError(error?.response?.data?.error || "Could not add member.")

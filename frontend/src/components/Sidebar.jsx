@@ -48,7 +48,8 @@ const Sidebar = () => {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem("trello-auth")
+    localStorage.removeItem("trello-auth");
+    sessionStorage.removeItem("trello-auth");
     localStorage.removeItem("trello-user")
     localStorage.removeItem("access_token")
     navigate("/signin")
@@ -68,7 +69,7 @@ const Sidebar = () => {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                 <Trello className="w-5 h-5 text-white" />
               </div>
-              <span className="font-bold text-lg text-gray-900 dark:text-slate-100">Sharing Tasks</span>
+              <span className="font-bold text-lg text-gray-900 dark:text-slate-100">Task Pro</span>
             </div>
           )}
           <button

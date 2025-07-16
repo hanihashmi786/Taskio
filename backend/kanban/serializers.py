@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Board, List, Card, Checklist, ChecklistItem, Comment, Label, BoardMembership
 from django.contrib.auth import get_user_model
+from accounts.serializers import UserProfileSerializer
 
 class ChecklistItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,11 +24,11 @@ class ChecklistSerializer(serializers.ModelSerializer):
         return checklist
 
 class CommentSerializer(serializers.ModelSerializer):
-    author_name = serializers.CharField(source='author.username', read_only=True)
+    author = UserProfileSerializer(read_only=True)
     class Meta:
         model = Comment
-        fields = ["id", "card", "author", "author_name", "text", "created_at"]
-        read_only_fields = ["id", "author", "author_name", "created_at"]
+        fields = ["id", "card", "author", "text", "created_at"]
+        read_only_fields = ["id", "author", "created_at"]
 
 class CardSerializer(serializers.ModelSerializer):
     checklists = ChecklistSerializer(many=True, required=False)

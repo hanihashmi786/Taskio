@@ -12,6 +12,7 @@ const Signin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -33,16 +34,20 @@ const Signin = () => {
         password: formData.password,
       });
       // Save tokens and user data
+      const storage = rememberMe ? localStorage : sessionStorage;
       if (response.data.access_token) {
-        localStorage.setItem("access_token", response.data.access_token);
+        storage.setItem("access_token", response.data.access_token);
+        console.log("Saving access_token:", response.data.access_token, "to", storage === localStorage ? "localStorage" : "sessionStorage");
       }
       if (response.data.refresh_token) {
-        localStorage.setItem("refresh_token", response.data.refresh_token);
+        storage.setItem("refresh_token", response.data.refresh_token);
       }
       if (response.data.user) {
-        localStorage.setItem("trello-auth", JSON.stringify({ user: response.data.user }));
+        storage.setItem("trello-auth", JSON.stringify({ user: response.data.user }));
       }
-      navigate("/dashboard");
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 100);
     } catch (err) {
       if (err.response && err.response.data) {
         setError(
@@ -142,6 +147,8 @@ const Signin = () => {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-slate-300">

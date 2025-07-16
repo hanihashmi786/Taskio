@@ -26,7 +26,12 @@ def signup(request):
         return Response({'error': 'All fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
     # ... rest of your validation
 
-    username = email.split('@')[0]
+    username_base = email.split('@')[0]
+    username = username_base
+    counter = 1
+    while User.objects.filter(username=username).exists():
+        username = f"{username_base}{counter}"
+        counter += 1
     user = User.objects.create_user(
         username=username,
         email=email,

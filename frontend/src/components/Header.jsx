@@ -33,16 +33,19 @@ const Header = () => {
   const isBoardView = location.pathname.includes("/dashboard/board/")
 
   // --- Always get the freshest user info (context + localStorage fallback) ---
-  let user = contextUser || {}
-  try {
-    const storedAuth = localStorage.getItem("trello-auth")
-    if (storedAuth) {
-      const parsed = JSON.parse(storedAuth).user
+  let storedAuth = localStorage.getItem("trello-auth");
+  if (!storedAuth) {
+    storedAuth = sessionStorage.getItem("trello-auth");
+  }
+  let user = contextUser || {};
+  if (storedAuth) {
+    try {
+      const parsed = JSON.parse(storedAuth).user;
       if (parsed) {
-        user = { ...user, ...parsed }
+        user = { ...user, ...parsed };
       }
-    }
-  } catch (e) {}
+    } catch (e) {}
+  }
 
   // Clean up first/last name
   const displayName =
@@ -65,7 +68,8 @@ const Header = () => {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem("trello-auth")
+    localStorage.removeItem("trello-auth");
+    sessionStorage.removeItem("trello-auth");
     localStorage.removeItem("trello-user")
     localStorage.removeItem("access_token")
     navigate("/signin")

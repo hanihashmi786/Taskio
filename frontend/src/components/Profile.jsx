@@ -90,9 +90,16 @@ const Profile = () => {
       })
       setAvatarPreview(res.data.avatar || "")
       setAvatarFile(null)
-      // Update localStorage user info for header
+      // Update localStorage and sessionStorage user info for header
       try {
-        const authData = JSON.parse(localStorage.getItem("trello-auth") || "{}")
+        let authData = {};
+        let stored = localStorage.getItem("trello-auth");
+        if (!stored) {
+          stored = sessionStorage.getItem("trello-auth");
+        }
+        if (stored) {
+          authData = JSON.parse(stored);
+        }
         if (authData && authData.user) {
           authData.user = {
             ...authData.user,
@@ -100,8 +107,9 @@ const Profile = () => {
             last_name: res.data.last_name,
             email: res.data.email,
             avatar: res.data.avatar,
-          }
-          localStorage.setItem("trello-auth", JSON.stringify(authData))
+          };
+          localStorage.setItem("trello-auth", JSON.stringify(authData));
+          sessionStorage.setItem("trello-auth", JSON.stringify(authData));
         }
         // Also update trello-user for context rehydration
         const userObj = {
@@ -111,6 +119,7 @@ const Profile = () => {
           avatar: res.data.avatar,
         };
         localStorage.setItem("trello-user", JSON.stringify(userObj));
+        sessionStorage.setItem("trello-user", JSON.stringify(userObj));
         // Update context user for header
         if (updateUser) {
           updateUser(userObj);

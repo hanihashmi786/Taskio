@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import LabelSelector from "./LabelSelector"
+import LabelSelector from "./LabelSelector" // Assuming this path is correct
 import {
   X,
   Calendar,
@@ -16,21 +16,30 @@ import {
   FileText,
   Check,
   Loader2,
+  Type,
+  Bold,
+  Italic,
+  List,
+  Link,
+  Mail,
+  HelpCircle,
+  ChevronDown,
 } from "lucide-react"
-import { getLabelById } from "../utils/labels"
-import useBoardStore from "../store/boardStore"
-import useCardStore from "../store/cardStore"
-import useChecklistStore from "../store/checklistStore"
+import { getLabelById } from "../utils/labels" // Assuming this path is correct
+import useBoardStore from "../store/boardStore" // Assuming this path is correct
+import useCardStore from "../store/cardStore" // Assuming this path is correct
+import useChecklistStore from "../store/checklistStore" // Assuming this path is correct
+import { useApp } from "../context/AppContext"
 
-const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || "";
+const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || ""
 
 function getAvatarUrl(avatar) {
-  if (!avatar) return "/placeholder.svg";
-  if (avatar.startsWith("http")) return avatar;
-  if (avatar.startsWith("/media/")) return MEDIA_URL.replace(/\/$/, "") + avatar;
-  if (avatar.startsWith("media/")) return MEDIA_URL.replace(/\/$/, "") + "/" + avatar;
-  if (avatar.startsWith("avatars/")) return MEDIA_URL.replace(/\/$/, "") + "/media/" + avatar;
-  return avatar;
+  if (!avatar) return "/placeholder.svg"
+  if (avatar.startsWith("http")) return avatar
+  if (avatar.startsWith("/media/")) return MEDIA_URL.replace(/\/$/, "") + avatar
+  if (avatar.startsWith("media/")) return MEDIA_URL.replace(/\/$/, "") + "/" + avatar
+  if (avatar.startsWith("avatars/")) return MEDIA_URL.replace(/\/$/, "") + "/media/" + avatar
+  return avatar
 }
 
 const CardModal = ({ isOpen, onClose, card, listId }) => {
@@ -48,6 +57,20 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   } = useChecklistStore()
 
   const board = getCurrentBoard()
+  const { user: contextUser } = useApp();
+  let currentUser = contextUser || {};
+  let storedAuth = localStorage.getItem("trello-auth");
+  if (!storedAuth) {
+    storedAuth = sessionStorage.getItem("trello-auth");
+  }
+  try {
+    if (storedAuth) {
+      const parsed = JSON.parse(storedAuth).user;
+      if (parsed) {
+        currentUser = { ...currentUser, ...parsed };
+      }
+    }
+  } catch (e) {}
 
   // Editable Card Form
   const [formData, setFormData] = useState({
@@ -127,7 +150,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
       await updateCard(card.id, {
         title: formData.title,
         description: formData.description,
-        due_date: formData.due_date,
+        due_date: formData.due_date ? formData.due_date.slice(0, 10) : "",
         labels: formData.labels,
         assignees: formData.assignees,
       })
@@ -310,31 +333,56 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
             <div className="p-6 flex-1">
               {activeTab === "details" && (
                 <div className="space-y-6">
-                  {/* Description */}
+                  {/* Description - Refactored */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
                       Description
                     </label>
-                    {isEditing ? (
+                    <div className="border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden">
+                      {/* Toolbar */}
+                      <div className="flex items-center justify-between bg-gray-100 dark:bg-slate-900 border-b border-gray-300 dark:border-slate-600 p-2">
+                        <div className="flex items-center gap-2">
+                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400 flex items-center gap-1">
+                            <Type className="w-4 h-4" />
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+                          <div className="w-px h-6 bg-gray-200 dark:bg-slate-700" />
+                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
+                            <Bold className="w-4 h-4" />
+                          </button>
+                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
+                            <Italic className="w-4 h-4" />
+                          </button>
+                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
+                            <List className="w-4 h-4" />
+                          </button>
+                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
+                            <Link className="w-4 h-4" />
+                          </button>
+                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
+                            <Paperclip className="w-4 h-4" />
+                          </button>
+                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
+                            <Mail className="w-4 h-4" />
+                          </button>
+                          <button className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-400">
+                            <HelpCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      {/* Textarea */}
                       <textarea
                         value={formData.description || ""}
                         onChange={(e) => handleInputChange("description", e.target.value)}
-                        className="w-full p-4 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white resize-none"
-                        rows={4}
+                        className="w-full p-4 focus:outline-none focus:ring-0 border-none bg-white dark:bg-slate-800 text-gray-900 dark:text-white resize-none min-h-[150px]"
                         placeholder="Add a description..."
                       />
-                    ) : (
-                      <div
-                        onClick={() => setIsEditing(true)}
-                        className="w-full p-4 border border-gray-300 dark:border-slate-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors min-h-[100px] bg-white dark:bg-slate-700"
-                      >
-                        {formData.description ? (
-                          <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{formData.description}</p>
-                        ) : (
-                          <p className="text-gray-500 dark:text-slate-400">Add a description...</p>
-                        )}
-                      </div>
-                    )}
+                    </div>
                   </div>
 
                   {/* Labels */}
@@ -386,7 +434,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                           }`}
                         >
                           <img
-                            src={member.avatar || "/placeholder.svg"}
+                            src={getAvatarUrl(member.avatar) || "/placeholder.svg"}
                             alt={member.first_name}
                             className="w-6 h-6 rounded-full"
                           />
@@ -409,8 +457,8 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         Due Date
                       </label>
                       <input
-                        type="datetime-local"
-                        value={formData.due_date || ""}
+                        type="date"
+                        value={formData.due_date ? formData.due_date.slice(0, 10) : ""}
                         onChange={(e) => handleInputChange("due_date", e.target.value)}
                         className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                       />
@@ -561,10 +609,10 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                 <div className="space-y-6">
                   {/* Add Comment */}
                   <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-4 border border-gray-200 dark:border-slate-600">
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 items-center">
                       <img
-                        src={getAvatarUrl(/* you may want to use the current user's avatar here if available */)}
-                        alt="You"
+                        src={getAvatarUrl(currentUser.avatar) || "/placeholder.svg"}
+                        alt={currentUser.first_name || "You"}
                         className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
                       />
                       <div className="flex-1">
@@ -590,29 +638,35 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
                   {/* Comments List */}
                   <div className="space-y-4">
-                    {cardComments.map((comment) => (
-                      <div
-                        key={comment.id}
-                        className="flex gap-3 p-4 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600"
-                      >
-                        <img
-                          src={getAvatarUrl(comment.author?.avatar)}
-                          alt={comment.author?.first_name || "User"}
-                          className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-gray-900 dark:text-white">
-                              {comment.author?.first_name} {comment.author?.last_name}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-slate-400">
-                              {formatDate(comment.created_at)}
-                            </span>
+                    {cardComments.map((comment) => {
+                      const avatarUrl = getAvatarUrl(comment.author?.avatar) || "/placeholder.svg";
+                      const displayName = ((comment.author?.first_name || "") + " " + (comment.author?.last_name || "")).trim() || comment.author?.username || comment.author?.email || "User";
+                      console.log("Comment author:", comment.author);
+                      console.log("Comment avatar URL:", avatarUrl);
+                      return (
+                        <div
+                          key={comment.id}
+                          className="flex gap-3 p-4 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600"
+                        >
+                          <img
+                            src={avatarUrl}
+                            alt={displayName}
+                            className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {displayName}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-slate-400">
+                                {formatDate(comment.created_at)}
+                              </span>
+                            </div>
+                            <p className="text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{comment.text}</p>
                           </div>
-                          <p className="text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{comment.text}</p>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {cardComments.length === 0 && (
                       <div className="text-center py-8">
