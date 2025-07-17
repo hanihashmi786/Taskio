@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import LabelSelector from "./LabelSelector" // Corrected path
-import RichTextEditor from "./RichTextEditor" // Import the rich text editor
+import LabelSelector from "./LabelSelector"
+import RichTextEditor from "./RichTextEditor"
 import {
   X,
   Calendar,
@@ -25,11 +25,17 @@ import {
   FileAudio,
   FileVideo,
   Download,
+  Link,
+  ExternalLink,
+  AlertCircle,
+  Globe,
+  Save,
+  Eye,
 } from "lucide-react"
-import { getLabelById } from "../utils/labels" // Corrected path
-import useBoardStore from "../store/boardStore" // Assuming this path is correct
-import useCardStore from "../store/cardStore" // Assuming this path is correct
-import useChecklistStore from "../store/checklistStore" // Assuming this path is correct
+import { getLabelById } from "../utils/labels"
+import useBoardStore from "../store/boardStore"
+import useCardStore from "../store/cardStore"
+import useChecklistStore from "../store/checklistStore"
 import { useApp } from "../context/AppContext"
 import { getAttachments, uploadAttachment, deleteAttachment } from "../api/attachments"
 
@@ -74,13 +80,14 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     }
   } catch (e) {}
 
-  // Editable Card Form
+  // Form state
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     due_date: "",
     assignees: [],
     labels: [],
+    url: "",
   })
 
   const [originalData, setOriginalData] = useState({})
@@ -89,6 +96,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   const [showLabelSelector, setShowLabelSelector] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [isTitleEditing, setIsTitleEditing] = useState(false)
   const [activeTab, setActiveTab] = useState("details")
   const [newComment, setNewComment] = useState("")
   const [newChecklistItem, setNewChecklistItem] = useState({})
@@ -96,11 +104,18 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   const [addingChecklist, setAddingChecklist] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
+  // URL validation states
+  const [urlError, setUrlError] = useState("")
+  const [urlValidating, setUrlValidating] = useState(false)
+  const [urlValid, setUrlValid] = useState(false)
+
   // Attachment states
   const [attachments, setAttachments] = useState([])
   const [loadingAttachments, setLoadingAttachments] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef(null)
+  const titleInputRef = useRef(null)
 
   useEffect(() => {
     if (card) {
@@ -110,15 +125,19 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
         due_date: card.due_date || "",
         assignees: card.assignees || [],
         labels: card.labels || [],
+        url: card.url || "",
       }
       setFormData(data)
       setOriginalData(data)
       setHasChanges(false)
+
+      if (data.url) {
+        validateUrl(data.url, false)
+      }
     }
   }, [card])
 
   useEffect(() => {
-    // Check if form data has changed
     const dataChanged = JSON.stringify(formData) !== JSON.stringify(originalData)
     setHasChanges(dataChanged)
   }, [formData, originalData])
@@ -126,7 +145,12 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape") {
-        onClose()
+        if (isTitleEditing) {
+          setFormData((prev) => ({ ...prev, title: originalData.title }))
+          setIsTitleEditing(false)
+        } else {
+          onClose()
+        }
       }
     }
 
@@ -139,7 +163,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
       document.removeEventListener("keydown", handleEscape)
       document.body.style.overflow = "unset"
     }
-  }, [isOpen, onClose])
+  }, [isOpen, onClose, isTitleEditing, originalData.title])
 
   useEffect(() => {
     if (!card?.id) return
@@ -148,10 +172,16 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     fetchChecklists(card.id)
   }, [card?.id, fetchChecklist, fetchComments, fetchChecklists])
 
-  // Load attachments when card changes
   useEffect(() => {
     if (card?.id) loadAttachments(card.id)
   }, [card?.id])
+
+  useEffect(() => {
+    if (isTitleEditing && titleInputRef.current) {
+      titleInputRef.current.focus()
+      titleInputRef.current.select()
+    }
+  }, [isTitleEditing])
 
   const loadAttachments = async (cardId) => {
     setLoadingAttachments(true)
@@ -167,6 +197,56 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+
+    if (field === "url") {
+      setUrlError("")
+      setUrlValid(false)
+      if (value.trim()) {
+        validateUrl(value)
+      }
+    }
+  }
+
+  const validateUrl = async (url, showLoading = true) => {
+    if (!url.trim()) {
+      setUrlError("")
+      setUrlValid(false)
+      return true
+    }
+
+    if (showLoading) setUrlValidating(true)
+
+    try {
+      // Basic URL format validation
+      const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i
+
+      if (!urlPattern.test(url)) {
+        setUrlError("Please enter a valid URL (e.g., https://example.com)")
+        setUrlValid(false)
+        return false
+      }
+
+      // Add protocol if missing
+      const fullUrl = url.startsWith("http") ? url : `https://${url}`
+
+      // Simulate validation
+      await new Promise((resolve) => setTimeout(resolve, 300))
+
+      setUrlError("")
+      setUrlValid(true)
+
+      if (fullUrl !== url) {
+        setFormData((prev) => ({ ...prev, url: fullUrl }))
+      }
+
+      return true
+    } catch (error) {
+      setUrlError("Invalid URL format. Please check and try again.")
+      setUrlValid(false)
+      return false
+    } finally {
+      if (showLoading) setUrlValidating(false)
+    }
   }
 
   const handleSave = async () => {
@@ -178,10 +258,12 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
         due_date: formData.due_date ? formData.due_date.slice(0, 10) : "",
         labels: formData.labels,
         assignees: formData.assignees,
+        url: formData.url,
       })
       setOriginalData(formData)
       setHasChanges(false)
       setIsEditing(false)
+      setIsTitleEditing(false)
     } catch (error) {
       console.error("Error saving card:", error)
     } finally {
@@ -197,6 +279,23 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
       } catch (error) {
         console.error("Error deleting card:", error)
       }
+    }
+  }
+
+  const handleTitleEdit = () => {
+    setIsTitleEditing(true)
+  }
+
+  const handleTitleSave = () => {
+    setIsTitleEditing(false)
+  }
+
+  const handleTitleKeyPress = (e) => {
+    if (e.key === "Enter") {
+      handleTitleSave()
+    } else if (e.key === "Escape") {
+      setFormData((prev) => ({ ...prev, title: originalData.title }))
+      setIsTitleEditing(false)
     }
   }
 
@@ -270,21 +369,41 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
-    console.log("File selected:", file)
     if (!file) return
-    console.log("Starting upload for file:", file.name)
+    await uploadFile(file)
+    e.target.value = null
+  }
+
+  const uploadFile = async (file) => {
     setUploading(true)
     try {
-      console.log("Uploading attachment for card:", card.id)
       await uploadAttachment(card.id, file)
-      console.log("Upload successful, reloading attachments")
       await loadAttachments(card.id)
-      setHasChanges(true) // Trigger save button
+      setHasChanges(true)
     } catch (e) {
       console.error("Upload failed:", e)
     } finally {
       setUploading(false)
-      e.target.value = null
+    }
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    setDragOver(true)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    setDragOver(false)
+  }
+
+  const handleDrop = async (e) => {
+    e.preventDefault()
+    setDragOver(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length > 0) {
+      await uploadFile(files[0])
     }
   }
 
@@ -293,7 +412,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     try {
       await deleteAttachment(id)
       await loadAttachments(card.id)
-      setHasChanges(true) // Trigger save button
+      setHasChanges(true)
     } catch (e) {
       console.error("Delete failed:", e)
     }
@@ -328,33 +447,33 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
       case "gif":
       case "webp":
       case "svg":
-        return <FileImage className="w-5 h-5 text-blue-500" />
+        return <FileImage className="w-4 h-4 text-blue-500" />
       case "pdf":
-        return <FilePdf className="w-5 h-5 text-red-500" />
+        return <FilePdf className="w-4 h-4 text-red-500" />
       case "doc":
       case "docx":
-        return <FileText className="w-5 h-5 text-blue-700" />
+        return <FileText className="w-4 h-4 text-blue-700" />
       case "xls":
       case "xlsx":
-        return <FileSpreadsheet className="w-5 h-5 text-green-500" />
+        return <FileSpreadsheet className="w-4 h-4 text-green-500" />
       case "ppt":
       case "pptx":
-        return <FileBarChart className="w-5 h-5 text-orange-500" />
+        return <FileBarChart className="w-4 h-4 text-orange-500" />
       case "zip":
       case "rar":
       case "7z":
-        return <FileArchive className="w-5 h-5 text-purple-500" />
+        return <FileArchive className="w-4 h-4 text-purple-500" />
       case "mp3":
       case "wav":
       case "ogg":
-        return <FileAudio className="w-5 h-5 text-yellow-500" />
+        return <FileAudio className="w-4 h-4 text-yellow-500" />
       case "mp4":
       case "mov":
       case "avi":
       case "webm":
-        return <FileVideo className="w-5 h-5 text-pink-500" />
+        return <FileVideo className="w-4 h-4 text-pink-500" />
       default:
-        return <FileText className="w-5 h-5 text-gray-500" />
+        return <FileText className="w-4 h-4 text-gray-500" />
     }
   }
 
@@ -368,41 +487,48 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   const cardComments = comments[card.id] || []
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-auto">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-4xl max-h-[90vh] shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-auto">
+      <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-4xl max-h-[85vh] shadow-xl border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col animate-in fade-in-0 zoom-in-95 duration-200">
+        {/* Simplified Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="flex items-center gap-3 flex-1">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            {isEditing ? (
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                className="text-xl font-bold bg-transparent border-b-2 border-blue-500 focus:outline-none text-gray-900 dark:text-white flex-1 py-1"
-                autoFocus
-              />
+            {isTitleEditing ? (
+              <div className="flex-1 relative">
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange("title", e.target.value)}
+                  onBlur={handleTitleSave}
+                  onKeyDown={handleTitleKeyPress}
+                  className="w-full text-lg font-semibold bg-white dark:bg-slate-700 border-2 border-blue-400 focus:border-blue-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white transition-all duration-200"
+                  placeholder="Enter card title..."
+                />
+              </div>
             ) : (
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex-1">{formData.title}</h2>
+              <div className="flex-1 group cursor-pointer relative" onClick={handleTitleEdit}>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200 pr-6">
+                  {formData.title}
+                </h2>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <Edit3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+              </div>
             )}
           </div>
+
           <div className="flex items-center gap-2">
-            {!isEditing ? (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 rounded-lg transition-colors"
-              >
-                <Edit3 className="w-4 h-4" />
-                Edit
-              </button>
-            ) : null}
+            {hasChanges && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-md text-xs font-medium">
+                <Clock className="w-3 h-3" />
+                Unsaved
+              </div>
+            )}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200"
             >
-              <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+              <X className="w-4 h-4 text-gray-500 dark:text-slate-400" />
             </button>
           </div>
         </div>
@@ -410,73 +536,67 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
         <div className="flex flex-1 overflow-hidden">
           {/* Main Content */}
           <div className="flex-1 overflow-y-auto">
-            {/* Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+            {/* Compact Tabs */}
+            <div className="flex border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
               {[
                 { id: "details", label: "Details", icon: FileText },
-                { id: "checklists", label: "Checklist", icon: CheckSquare },
-                { id: "comments", label: "Comments", icon: MessageCircle },
+                { id: "checklists", label: "Checklist", icon: CheckSquare, count: checklistItems.length },
+                { id: "comments", label: "Comments", icon: MessageCircle, count: cardComments.length },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-4 py-3 font-medium transition-all duration-200 relative text-sm ${
                     activeTab === tab.id
-                      ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-                      : "text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200"
+                      ? "text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800"
+                      : "text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
                   }`}
                 >
                   <tab.icon className="w-4 h-4" />
                   {tab.label}
-                  {tab.id === "comments" && cardComments.length > 0 && (
-                    <span className="bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300 text-xs px-2 py-1 rounded-full">
-                      {cardComments.length}
+                  {tab.count > 0 && (
+                    <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs px-1.5 py-0.5 rounded-full font-semibold">
+                      {tab.count}
                     </span>
                   )}
-                  {tab.id === "checklists" && checklistItems.length > 0 && (
-                    <span className="bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-slate-300 text-xs px-2 py-1 rounded-full">
-                      {checklistItems.length}
-                    </span>
+                  {activeTab === tab.id && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"></div>
                   )}
                 </button>
               ))}
             </div>
 
             {/* Tab Content */}
-            <div className="p-6 flex-1">
+            <div className="p-4 flex-1">
               {activeTab === "details" && (
                 <div className="space-y-6">
-                  {/* Description - Updated with Rich Text Editor */}
+                  {/* Description */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                       Description
                     </label>
                     <RichTextEditor
                       value={formData.description || ""}
-                      onChange={(html) => {
-                        console.log("Description changed:", html)
-                        handleInputChange("description", html)
-                      }}
-                      placeholder="Add a description..."
+                      onChange={(html) => handleInputChange("description", html)}
+                      placeholder="Add a detailed description..."
                       disabled={false}
-                      className="w-full"
+                      className="w-full border border-gray-200 dark:border-slate-600 rounded-lg focus-within:border-blue-500 transition-colors duration-200"
                     />
-                    <div className="text-xs text-gray-500 mt-1">
-                      isEditing: {isEditing ? "true" : "false"} | 
-                      Description length: {(formData.description || "").length}
-                    </div>
                   </div>
 
                   {/* Labels */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Labels</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-purple-500" />
+                        Labels
+                      </label>
                       <button
                         onClick={() => setShowLabelSelector(true)}
-                        className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors duration-200"
                       >
-                        <Plus className="w-4 h-4" />
-                        Add Label
+                        <Plus className="w-3 h-3" />
+                        Add
                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -486,14 +606,14 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         return (
                           <span
                             key={labelId}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium ${label.color} ${label.textColor} shadow-sm`}
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${label.color} ${label.textColor}`}
                           >
                             {label.name}
                           </span>
                         )
                       })}
                       {(!formData.labels || formData.labels.length === 0) && (
-                        <p className="text-gray-500 dark:text-slate-400 text-sm">No labels assigned</p>
+                        <div className="text-gray-500 dark:text-slate-400 text-xs italic">No labels assigned</div>
                       )}
                     </div>
                   </div>
@@ -501,7 +621,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                   {/* Assignees */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                      <Users className="w-4 h-4" />
+                      <Users className="w-4 h-4 text-green-500" />
                       Assignees
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -509,9 +629,9 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         <button
                           key={member.id}
                           onClick={() => toggleAssignee(member.id)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-200 text-sm ${
                             formData.assignees.includes(member.id)
-                              ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300"
+                              ? "bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-300"
                               : "bg-white dark:bg-slate-700 border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-600"
                           }`}
                         >
@@ -520,44 +640,43 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                             alt={member.first_name}
                             className="w-6 h-6 rounded-full"
                           />
-                          <span className="text-sm font-medium">
+                          <span className="font-medium">
                             {member.first_name} {member.last_name}
                           </span>
+                          {formData.assignees.includes(member.id) && <Check className="w-3 h-3 text-blue-600" />}
                         </button>
                       ))}
-                      {(!board?.members || board.members.length === 0) && (
-                        <p className="text-gray-500 dark:text-slate-400 text-sm">No team members available</p>
-                      )}
                     </div>
                   </div>
 
                   {/* Due Date */}
-                  {isEditing && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        Due Date
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.due_date ? formData.due_date.slice(0, 10) : ""}
-                        onChange={(e) => handleInputChange("due_date", e.target.value)}
-                        className="w-full p-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      />
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-orange-500" />
+                      Due Date
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.due_date ? formData.due_date.slice(0, 10) : ""}
+                      onChange={(e) => handleInputChange("due_date", e.target.value)}
+                      className="px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
+                    />
+                  </div>
 
-                  {/* Attachments */}
+                  {/* Compact Attachments */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Attachments</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                        <Paperclip className="w-4 h-4 text-indigo-500" />
+                        Attachments
+                      </label>
                       <button
                         onClick={handleUploadClick}
                         disabled={uploading}
-                        className="flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 disabled:opacity-50 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors duration-200 disabled:opacity-50"
                       >
-                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
-                        {uploading ? "Uploading..." : "Add Attachment"}
+                        {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                        {uploading ? "Uploading..." : "Add"}
                       </button>
                       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                     </div>
@@ -567,72 +686,97 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                       </div>
                     ) : attachments.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {attachments.map((att) => (
                           <div
                             key={att.id}
-                            className="group relative overflow-hidden hover:shadow-md transition-all duration-200"
+                            className="group relative bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden hover:shadow-md transition-all duration-200"
                           >
-                            {isImageFile(att.file) && (
-                              <div className="relative w-full h-32 bg-gray-100 dark:bg-slate-700 flex items-center justify-center overflow-hidden">
+                            {isImageFile(att.file) ? (
+                              <div className="relative h-24 bg-gray-100 dark:bg-slate-600">
                                 <img
                                   src={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
                                   alt={att.file.split("/").pop()}
-                                  className="object-cover w-full h-full"
+                                  className="w-full h-full object-cover"
                                 />
-                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <a
-                                    href={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-2 rounded-full bg-white/80 text-gray-800 hover:bg-white transition-colors"
-                                    title="View attachment"
-                                  >
-                                    <Download className="w-5 h-5" />
-                                  </a>
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                                  <div className="flex gap-1">
+                                    <a
+                                      href={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1.5 bg-white/90 rounded hover:bg-white transition-colors"
+                                    >
+                                      <Eye className="w-3 h-3 text-gray-700" />
+                                    </a>
+                                    <a
+                                      href={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
+                                      download
+                                      className="p-1.5 bg-white/90 rounded hover:bg-white transition-colors"
+                                    >
+                                      <Download className="w-3 h-3 text-gray-700" />
+                                    </a>
+                                  </div>
                                 </div>
                               </div>
-                            )}
-                            <div className="p-4 flex flex-col gap-2">
-                              <div className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                            ) : (
+                              <div className="h-16 bg-gray-50 dark:bg-slate-600 flex items-center justify-center">
                                 {getFileIcon(att.file)}
-                                <span className="truncate">{att.file.split("/").pop()}</span>
                               </div>
-                              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
+                            )}
+
+                            <div className="p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <h4 className="font-medium text-xs text-gray-900 dark:text-white truncate flex-1">
+                                  {att.file.split("/").pop()}
+                                </h4>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <a
+                                    href={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
+                                    download
+                                    className="p-1 hover:bg-gray-100 dark:hover:bg-slate-600 rounded transition-colors"
+                                    title="Download"
+                                  >
+                                    <Download className="w-3 h-3 text-gray-500" />
+                                  </a>
+                                  {att.uploaded_by === currentUser.username && (
+                                    <button
+                                      onClick={() => handleDeleteAttachment(att.id)}
+                                      className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="w-3 h-3 text-red-500" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400 mt-1">
                                 <span>{att.file_size ? formatBytes(att.file_size) : "N/A"}</span>
                                 <span>{att.uploaded_at_formatted || "N/A"}</span>
-                              </div>
-                              <div className="flex justify-end gap-2 mt-2">
-                                <a
-                                  href={att.file.startsWith("http") ? att.file : MEDIA_URL + att.file}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-600 dark:text-slate-300 transition-colors"
-                                  title="Download attachment"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </a>
-                                {att.uploaded_by === currentUser.username && isEditing && (
-                                  <button
-                                    onClick={() => handleDeleteAttachment(att.id)}
-                                    className="p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-colors"
-                                    title="Delete attachment"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                )}
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 border border-dashed border-gray-300 dark:border-slate-600 rounded-lg bg-gray-50 dark:bg-slate-700/30">
-                        <Paperclip className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
-                        <p className="text-gray-500 dark:text-slate-400">No attachments yet</p>
-                        <p className="text-sm text-gray-400 dark:text-slate-500">
-                          Click "Add Attachment" to upload files
-                        </p>
+                      <div
+                        className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 ${
+                          dragOver
+                            ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                            : "border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-700/30"
+                        }`}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                      >
+                        <Paperclip className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500 dark:text-slate-400 mb-2">No attachments yet</p>
+                        <button
+                          onClick={handleUploadClick}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors duration-200"
+                        >
+                          Choose Files
+                        </button>
                       </div>
                     )}
                   </div>
@@ -640,16 +784,16 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
               )}
 
               {activeTab === "checklists" && (
-                <div className="space-y-6">
-                  {/* Add New Checklist */}
-                  <div className="bg-gray-50 dark:bg-slate-700/30 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
+                <div className="space-y-4">
+                  {/* Compact Add Checklist */}
+                  <div className="bg-blue-50 dark:bg-slate-800 rounded-lg p-4 border border-blue-200 dark:border-slate-600">
                     <div className="flex gap-3">
                       <input
                         type="text"
                         value={newChecklistTitle}
                         onChange={(e) => setNewChecklistTitle(e.target.value)}
                         placeholder="Create a new checklist..."
-                        className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                        className="flex-1 px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
                         onKeyPress={(e) => {
                           if (e.key === "Enter") handleAddChecklist()
                         }}
@@ -657,16 +801,16 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                       />
                       <button
                         onClick={handleAddChecklist}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 text-sm font-medium"
                         disabled={addingChecklist || !newChecklistTitle.trim()}
                       >
                         {addingChecklist ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        {addingChecklist ? "Adding..." : "Add Checklist"}
+                        Add
                       </button>
                     </div>
                   </div>
 
-                  {/* Checklists */}
+                  {/* Compact Checklists */}
                   {checklists && checklists.length > 0 ? (
                     <div className="space-y-4">
                       {checklists.map((checklist) => {
@@ -678,27 +822,28 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         return (
                           <div
                             key={checklist.id}
-                            className="bg-white dark:bg-slate-700 rounded-lg p-5 border border-gray-200 dark:border-slate-600 shadow-sm"
+                            className="bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden"
                           >
-                            {/* Checklist Header */}
-                            <div className="flex items-center justify-between mb-4">
-                              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                {checklist.title}
-                              </h3>
-                              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
-                                <span className="font-medium">
+                            {/* Compact Header */}
+                            <div className="p-4 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-600">
+                              <div className="flex items-center justify-between mb-3">
+                                <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 text-sm">
+                                  <CheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                  {checklist.title}
+                                </h3>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    percent === 100
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                      : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                                  }`}
+                                >
                                   {completed}/{total}
                                 </span>
-                                <span>({percent}%)</span>
                               </div>
-                            </div>
-
-                            {/* Progress Bar */}
-                            <div className="mb-4">
                               <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-2">
                                 <div
-                                  className={`h-2 rounded-full transition-all duration-500 ${
+                                  className={`h-full rounded-full transition-all duration-500 ${
                                     percent === 100 ? "bg-green-500" : "bg-blue-500"
                                   }`}
                                   style={{ width: `${percent}%` }}
@@ -706,62 +851,64 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                               </div>
                             </div>
 
-                            {/* Checklist Items */}
-                            <div className="space-y-2 mb-4">
-                              {items.map((item) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-slate-600/50 rounded-lg transition-colors group"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={item.completed}
-                                    onChange={() => handleToggleChecklistItem(item.id, item.completed)}
-                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                  />
-                                  <span
-                                    className={`flex-1 text-sm transition-all ${
-                                      item.completed
-                                        ? "line-through text-gray-400 dark:text-slate-500"
-                                        : "text-gray-900 dark:text-white"
-                                    }`}
+                            {/* Compact Items */}
+                            <div className="p-4">
+                              <div className="space-y-2 mb-4">
+                                {items.map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-slate-600/50 rounded-lg transition-all duration-200 group"
                                   >
-                                    {item.text}
-                                  </span>
-                                  <button
-                                    onClick={() => handleDeleteChecklistItem(item.id)}
-                                    className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
+                                    <input
+                                      type="checkbox"
+                                      checked={item.completed}
+                                      onChange={() => handleToggleChecklistItem(item.id, item.completed)}
+                                      className="w-4 h-4 text-blue-600 bg-gray-100 border border-gray-300 rounded focus:ring-blue-500 transition-colors duration-200"
+                                    />
+                                    <span
+                                      className={`flex-1 text-sm transition-all duration-200 ${
+                                        item.completed
+                                          ? "line-through text-gray-400 dark:text-slate-500"
+                                          : "text-gray-900 dark:text-white"
+                                      }`}
+                                    >
+                                      {item.text}
+                                    </span>
+                                    <button
+                                      onClick={() => handleDeleteChecklistItem(item.id)}
+                                      className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all duration-200 opacity-0 group-hover:opacity-100"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
 
-                            {/* Add New Item */}
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={newChecklistItem[checklist.id] || ""}
-                                onChange={(e) =>
-                                  setNewChecklistItem((prev) => ({ ...prev, [checklist.id]: e.target.value }))
-                                }
-                                placeholder="Add an item..."
-                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                                onKeyPress={(e) => {
-                                  if (e.key === "Enter") {
-                                    handleAddChecklistItem(checklist.id)
+                              {/* Add Item */}
+                              <div className="flex gap-2 p-2 bg-gray-50 dark:bg-slate-600/30 rounded-lg">
+                                <input
+                                  type="text"
+                                  value={newChecklistItem[checklist.id] || ""}
+                                  onChange={(e) =>
+                                    setNewChecklistItem((prev) => ({ ...prev, [checklist.id]: e.target.value }))
                                   }
-                                }}
-                              />
-                              <button
-                                onClick={() => handleAddChecklistItem(checklist.id)}
-                                className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-600 hover:bg-gray-200 dark:hover:bg-slate-500 text-gray-700 dark:text-slate-200 rounded-lg transition-colors"
-                                disabled={!newChecklistItem[checklist.id]?.trim()}
-                              >
-                                <Plus className="w-4 h-4" />
-                                Add
-                              </button>
+                                  placeholder="Add an item..."
+                                  className="flex-1 px-2 py-1.5 border border-gray-200 dark:border-slate-600 rounded focus:outline-none focus:border-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white transition-colors duration-200 text-sm"
+                                  onKeyPress={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleAddChecklistItem(checklist.id)
+                                    }
+                                  }}
+                                />
+                                <button
+                                  onClick={() => handleAddChecklistItem(checklist.id)}
+                                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors duration-200 disabled:opacity-50 text-sm font-medium"
+                                  disabled={!newChecklistItem[checklist.id]?.trim()}
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  Add
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )
@@ -769,37 +916,39 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <CheckSquare className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
-                      <p className="text-gray-500 dark:text-slate-400">No checklists yet</p>
-                      <p className="text-sm text-gray-400 dark:text-slate-500">Create your first checklist above</p>
+                      <CheckSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No checklists yet</h3>
+                      <p className="text-gray-500 dark:text-slate-400 text-sm">
+                        Create your first checklist to start organizing tasks
+                      </p>
                     </div>
                   )}
                 </div>
               )}
 
               {activeTab === "comments" && (
-                <div className="space-y-6">
-                  {/* Add Comment */}
-                  <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-4 border border-gray-200 dark:border-slate-600">
-                    <div className="flex gap-3 items-center">
+                <div className="space-y-4">
+                  {/* Compact Add Comment */}
+                  <div className="bg-blue-50 dark:bg-slate-800 rounded-lg p-4 border border-blue-200 dark:border-slate-600">
+                    <div className="flex gap-3">
                       <img
                         src={getAvatarUrl(currentUser.avatar) || "/placeholder.svg"}
                         alt={currentUser.first_name || "You"}
-                        className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
+                        className="w-8 h-8 rounded-full flex-shrink-0"
                       />
-                      <div className="flex-1">
+                      <div className="flex-1 space-y-2">
                         <textarea
                           value={newComment}
                           onChange={(e) => setNewComment(e.target.value)}
                           placeholder="Write a comment..."
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-gray-900 dark:text-white resize-none"
-                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white resize-none transition-colors duration-200 text-sm"
+                          rows={2}
                         />
-                        <div className="flex justify-end mt-2">
+                        <div className="flex justify-end">
                           <button
                             onClick={handleAddComment}
                             disabled={!newComment.trim()}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors disabled:cursor-not-allowed"
+                            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors duration-200 disabled:cursor-not-allowed text-sm font-medium"
                           >
                             Comment
                           </button>
@@ -808,8 +957,8 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                     </div>
                   </div>
 
-                  {/* Comments List */}
-                  <div className="space-y-4">
+                  {/* Compact Comments */}
+                  <div className="space-y-3">
                     {cardComments.map((comment) => {
                       const avatarUrl = getAvatarUrl(comment.author?.avatar) || "/placeholder.svg"
                       const displayName =
@@ -817,8 +966,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                         comment.author?.username ||
                         comment.author?.email ||
                         "User"
-                      console.log("Comment author:", comment.author)
-                      console.log("Comment avatar URL:", avatarUrl)
+
                       return (
                         <div
                           key={comment.id}
@@ -827,16 +975,18 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                           <img
                             src={avatarUrl || "/placeholder.svg"}
                             alt={displayName}
-                            className="w-8 h-8 rounded-full ring-2 ring-gray-200 dark:ring-slate-600"
+                            className="w-8 h-8 rounded-full flex-shrink-0"
                           />
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-gray-900 dark:text-white">{displayName}</span>
+                              <span className="font-medium text-gray-900 dark:text-white text-sm">{displayName}</span>
                               <span className="text-xs text-gray-500 dark:text-slate-400">
                                 {formatDate(comment.created_at)}
                               </span>
                             </div>
-                            <p className="text-gray-700 dark:text-slate-300 whitespace-pre-wrap">{comment.text}</p>
+                            <p className="text-gray-700 dark:text-slate-300 whitespace-pre-wrap text-sm leading-relaxed">
+                              {comment.text}
+                            </p>
                           </div>
                         </div>
                       )
@@ -844,9 +994,9 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
                     {cardComments.length === 0 && (
                       <div className="text-center py-8">
-                        <MessageCircle className="w-12 h-12 text-gray-400 dark:text-slate-500 mx-auto mb-3" />
-                        <p className="text-gray-500 dark:text-slate-400">No comments yet</p>
-                        <p className="text-sm text-gray-400 dark:text-slate-500">Be the first to add a comment</p>
+                        <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No comments yet</h3>
+                        <p className="text-gray-500 dark:text-slate-400 text-sm">Be the first to add a comment</p>
                       </div>
                     )}
                   </div>
@@ -855,66 +1005,63 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="w-80 bg-gray-50 dark:bg-slate-900/50 border-l border-gray-200 dark:border-slate-700 p-6 overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Card Details</h3>
+          {/* Compact Sidebar */}
+          <div className="w-64 bg-gray-50 dark:bg-slate-800 border-l border-gray-200 dark:border-slate-700 p-4 overflow-y-auto">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Card Details</h3>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Due Date */}
               {formData.due_date && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
+                <div className="p-3 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1 flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-orange-500" />
                     Due Date
                   </label>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-900 dark:text-white">{formatDate(formData.due_date)}</span>
+                  <div className="flex items-center gap-1 text-xs">
+                    <Clock className="w-3 h-3 text-gray-400" />
+                    <span className="text-gray-900 dark:text-white font-medium">{formatDate(formData.due_date)}</span>
                   </div>
                 </div>
               )}
 
               {/* Created */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Created</label>
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
-                  <Clock className="w-4 h-4" />
+              <div className="p-3 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600">
+                <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">Created</label>
+                <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-slate-400">
+                  <Clock className="w-3 h-3" />
                   <span>{formatDate(card.created_at)}</span>
                 </div>
               </div>
 
               {/* Actions */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">Actions</label>
+                <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-3">
+                  Quick Actions
+                </label>
                 <div className="space-y-2">
                   <button
                     onClick={() => setShowLabelSelector(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 rounded-lg transition-colors border border-gray-200 dark:border-slate-600"
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 rounded-lg transition-all duration-200 border border-gray-200 dark:border-slate-600 text-sm"
                   >
-                    <Tag className="w-4 h-4" />
-                    Labels
+                    <Tag className="w-4 h-4 text-purple-500" />
+                    <span>Labels</span>
                   </button>
 
                   <button
-                    onClick={() => setIsEditing(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 rounded-lg transition-colors border border-gray-200 dark:border-slate-600"
+                    onClick={handleUploadClick}
+                    className="w-full flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 rounded-lg transition-all duration-200 border border-gray-200 dark:border-slate-600 text-sm"
                   >
-                    <Calendar className="w-4 h-4" />
-                    Due Date
+                    <Paperclip className="w-4 h-4 text-indigo-500" />
+                    <span>Attachment</span>
                   </button>
 
-                  <button className="w-full flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-700 hover:bg-gray-50 dark:hover:bg-slate-600 text-gray-700 dark:text-slate-200 rounded-lg transition-colors border border-gray-200 dark:border-slate-600">
-                    <Paperclip className="w-4 h-4" />
-                    Attachment
-                  </button>
-
-                  <div className="border-t border-gray-200 dark:border-slate-600 pt-2 mt-4">
+                  <div className="border-t border-gray-200 dark:border-slate-600 pt-3 mt-4">
                     <button
                       onClick={handleDelete}
-                      className="w-full flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-lg transition-colors border border-red-200 dark:border-red-800/30"
+                      className="w-full flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-lg transition-all duration-200 border border-red-200 dark:border-red-800/30 text-sm"
                     >
                       <Trash2 className="w-4 h-4" />
-                      Delete Card
+                      <span>Delete Card</span>
                     </button>
                   </div>
                 </div>
@@ -923,18 +1070,43 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
           </div>
         </div>
 
-        {/* Save Button - Fixed at bottom */}
+        {/* Compact Save Button */}
         {hasChanges && (
           <div className="border-t border-gray-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-800">
-            <div className="flex justify-end">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
-              >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                <span className="font-medium">{saving ? "Saving..." : "Save Changes"}</span>
-              </button>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                <Clock className="w-3 h-3" />
+                <span>You have unsaved changes</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setFormData(originalData)
+                    setHasChanges(false)
+                    setIsTitleEditing(false)
+                  }}
+                  className="px-4 py-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 text-sm font-medium transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !!urlError}
+                  className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
