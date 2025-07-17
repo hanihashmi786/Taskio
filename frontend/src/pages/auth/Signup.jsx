@@ -116,7 +116,7 @@ const Signup = () => {
             <div className="h-8 w-8 bg-white rounded-lg opacity-90" />
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create your account</h2>
-          <p className="text-gray-600 dark:text-slate-400">Join TaskFlow and start organizing your projects</p>
+          <p className="text-gray-600 dark:text-slate-400">Join TaskPro and start organizing your projects</p>
         </div>
         {/* Main Form Card */}
         <div className="bg-white dark:bg-slate-800 shadow-xl rounded-2xl p-8 border border-gray-200 dark:border-slate-700">

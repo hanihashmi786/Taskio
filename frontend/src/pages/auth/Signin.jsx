@@ -72,7 +72,7 @@ const Signin = () => {
             <div className="h-8 w-8 bg-white rounded-lg opacity-90" />
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome back</h2>
-          <p className="text-gray-600 dark:text-slate-400">Sign in to your TaskFlow account</p>
+          <p className="text-gray-600 dark:text-slate-400">Sign in to your TaskPro account</p>
         </div>
 
         {/* Main Form Card */}
