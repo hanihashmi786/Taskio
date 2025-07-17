@@ -13,16 +13,23 @@ import AddListForm from "./AddListForm"
 
 const KanbanBoard = ({ onCardClick }) => {
   const { id } = useParams();
-  const { getCurrentBoard, setCurrentBoard, boards } = useBoardStore()
-  const board = getCurrentBoard()
-  const boardId = board?.id
+  const { boards, currentBoardId, setCurrentBoard, fetchBoards, getCurrentBoard } = useBoardStore();
+  const board = getCurrentBoard();
+  const boardId = id
 
-  // Auto-select board based on URL param
+  // 1️⃣ Fetch all boards once on mount
+  useEffect(() => {
+    fetchBoards();
+  }, [fetchBoards]);
+
+  // 2️⃣ When URL changes (or after boards load), sync URL → store
   useEffect(() => {
     if (id && boards.length) {
       setCurrentBoard(Number(id));
     }
   }, [id, boards, setCurrentBoard]);
+
+
 
   // ✅ THE FIX: Pull all from the Zustand list store
   const { lists, fetchLists, setLists, updateList } = useListStore()

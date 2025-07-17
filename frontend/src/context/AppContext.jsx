@@ -466,7 +466,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const savedTheme = localStorage.getItem("trello-theme")
     const savedBoards = localStorage.getItem("trello-boards")
-    const savedUser = localStorage.getItem("trello-user")
+    const savedUser = sessionStorage.getItem("trello-user")
 
     if (savedTheme) {
       dispatch({ type: ACTIONS.SET_THEME, payload: savedTheme })
