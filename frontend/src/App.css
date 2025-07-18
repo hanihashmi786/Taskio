@@ -40,3 +40,32 @@
 .read-the-docs {
   color: #888;
 }
+
+:root {
+  --main-padding: 12px;
+  --main-gap: 8px;
+  --main-radius: 6px;
+}
+
+.app-container, .main-content, .dashboard, .modal, .sidebar {
+  padding: var(--main-padding);
+  gap: var(--main-gap);
+  border-radius: var(--main-radius);
+}
+
+h1, h2, h3 {
+  font-size: 1.1em;
+  margin: 0.5em 0;
+}
+
+button {
+  padding: 0.25em 0.75em;
+  font-size: 0.95em;
+  border-radius: 4px;
+}
+
+input, textarea, select {
+  padding: 0.25em 0.5em;
+  font-size: 0.95em;
+  border-radius: 4px;
+}

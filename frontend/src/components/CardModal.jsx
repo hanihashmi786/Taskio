@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import LabelSelector from "./LabelSelector"
-import RichTextEditor from "./RichTextEditor"
+import EnhancedRichTextEditor from "./RichTextEditor"
 import {
   X,
   Calendar,
@@ -25,10 +25,6 @@ import {
   FileAudio,
   FileVideo,
   Download,
-  Link,
-  ExternalLink,
-  AlertCircle,
-  Globe,
   Save,
   Eye,
 } from "lucide-react"
@@ -87,7 +83,6 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
     due_date: "",
     assignees: [],
     labels: [],
-    url: "",
   })
 
   const [originalData, setOriginalData] = useState({})
@@ -104,11 +99,6 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   const [addingChecklist, setAddingChecklist] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
-  // URL validation states
-  const [urlError, setUrlError] = useState("")
-  const [urlValidating, setUrlValidating] = useState(false)
-  const [urlValid, setUrlValid] = useState(false)
-
   // Attachment states
   const [attachments, setAttachments] = useState([])
   const [loadingAttachments, setLoadingAttachments] = useState(false)
@@ -116,6 +106,15 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef(null)
   const titleInputRef = useRef(null)
+
+  // Get users for mentions (from board members)
+  const mentionUsers =
+    board?.members?.map((member) => ({
+      id: member.id,
+      name: `${member.first_name} ${member.last_name}`.trim(),
+      username: member.username || member.email?.split("@")[0] || `user${member.id}`,
+      avatar: getAvatarUrl(member.avatar),
+    })) || []
 
   useEffect(() => {
     if (card) {
@@ -125,15 +124,10 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
         due_date: card.due_date || "",
         assignees: card.assignees || [],
         labels: card.labels || [],
-        url: card.url || "",
       }
       setFormData(data)
       setOriginalData(data)
       setHasChanges(false)
-
-      if (data.url) {
-        validateUrl(data.url, false)
-      }
     }
   }, [card])
 
@@ -197,55 +191,23 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-
-    if (field === "url") {
-      setUrlError("")
-      setUrlValid(false)
-      if (value.trim()) {
-        validateUrl(value)
-      }
-    }
   }
 
-  const validateUrl = async (url, showLoading = true) => {
-    if (!url.trim()) {
-      setUrlError("")
-      setUrlValid(false)
-      return true
-    }
-
-    if (showLoading) setUrlValidating(true)
-
+  // Handle image upload for rich text editor
+  const handleRichTextImageUpload = async (file) => {
     try {
-      // Basic URL format validation
-      const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i
+      // Upload the image as an attachment
+      const response = await uploadAttachment(card.id, file)
 
-      if (!urlPattern.test(url)) {
-        setUrlError("Please enter a valid URL (e.g., https://example.com)")
-        setUrlValid(false)
-        return false
-      }
+      // Reload attachments to show the new image
+      await loadAttachments(card.id)
 
-      // Add protocol if missing
-      const fullUrl = url.startsWith("http") ? url : `https://${url}`
-
-      // Simulate validation
-      await new Promise((resolve) => setTimeout(resolve, 300))
-
-      setUrlError("")
-      setUrlValid(true)
-
-      if (fullUrl !== url) {
-        setFormData((prev) => ({ ...prev, url: fullUrl }))
-      }
-
-      return true
+      // Return the URL for the rich text editor
+      const imageUrl = response.data?.file || URL.createObjectURL(file)
+      return imageUrl.startsWith("http") ? imageUrl : MEDIA_URL + imageUrl
     } catch (error) {
-      setUrlError("Invalid URL format. Please check and try again.")
-      setUrlValid(false)
-      return false
-    } finally {
-      if (showLoading) setUrlValidating(false)
+      console.error("Error uploading image:", error)
+      throw error
     }
   }
 
@@ -258,7 +220,6 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
         due_date: formData.due_date ? formData.due_date.slice(0, 10) : "",
         labels: formData.labels,
         assignees: formData.assignees,
-        url: formData.url,
       })
       setOriginalData(formData)
       setHasChanges(false)
@@ -488,8 +449,8 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-auto">
-      <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-4xl max-h-[85vh] shadow-xl border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col animate-in fade-in-0 zoom-in-95 duration-200">
-        {/* Simplified Header */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-5xl max-h-[90vh] shadow-xl border border-gray-200 dark:border-slate-700 overflow-hidden flex flex-col animate-in fade-in-0 zoom-in-95 duration-200">
+        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="flex items-center gap-3 flex-1">
             {isTitleEditing ? (
@@ -536,7 +497,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
         <div className="flex flex-1 overflow-hidden">
           {/* Main Content */}
           <div className="flex-1 overflow-y-auto">
-            {/* Compact Tabs */}
+            {/* Tabs */}
             <div className="flex border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
               {[
                 { id: "details", label: "Details", icon: FileText },
@@ -567,20 +528,24 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
             </div>
 
             {/* Tab Content */}
-            <div className="p-4 flex-1">
+            <div className="p-6 flex-1">
               {activeTab === "details" && (
                 <div className="space-y-6">
-                  {/* Description */}
+                  {/* Enhanced Description with Rich Text Editor */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">
                       Description
                     </label>
-                    <RichTextEditor
-                      value={formData.description || ""}
-                      onChange={(html) => handleInputChange("description", html)}
-                      placeholder="Add a detailed description..."
+                    <EnhancedRichTextEditor
+                      // value={formData.description || ""} // Remove controlled value
+                      defaultValue={formData.description || ""} // Use defaultValue for initial content
+                      onChange={(html) => handleInputChange("description", html)} // Keep for compatibility, but main update onBlur
+                      onBlur={(html) => handleInputChange("description", html)} // Update parent state on blur
+                      placeholder="Add a detailed description with rich formatting, mentions, images, emojis, and code snippets..."
                       disabled={false}
-                      className="w-full border border-gray-200 dark:border-slate-600 rounded-lg focus-within:border-blue-500 transition-colors duration-200"
+                      className="w-full"
+                      onImageUpload={handleRichTextImageUpload}
+                      users={mentionUsers}
                     />
                   </div>
 
@@ -663,7 +628,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                     />
                   </div>
 
-                  {/* Compact Attachments */}
+                  {/* Attachments */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
@@ -785,7 +750,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
               {activeTab === "checklists" && (
                 <div className="space-y-4">
-                  {/* Compact Add Checklist */}
+                  {/* Add Checklist */}
                   <div className="bg-blue-50 dark:bg-slate-800 rounded-lg p-4 border border-blue-200 dark:border-slate-600">
                     <div className="flex gap-3">
                       <input
@@ -810,7 +775,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                     </div>
                   </div>
 
-                  {/* Compact Checklists */}
+                  {/* Checklists */}
                   {checklists && checklists.length > 0 ? (
                     <div className="space-y-4">
                       {checklists.map((checklist) => {
@@ -824,7 +789,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                             key={checklist.id}
                             className="bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden"
                           >
-                            {/* Compact Header */}
+                            {/* Header */}
                             <div className="p-4 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-600">
                               <div className="flex items-center justify-between mb-3">
                                 <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 text-sm">
@@ -851,7 +816,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                               </div>
                             </div>
 
-                            {/* Compact Items */}
+                            {/* Items */}
                             <div className="p-4">
                               <div className="space-y-2 mb-4">
                                 {items.map((item) => (
@@ -928,7 +893,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
 
               {activeTab === "comments" && (
                 <div className="space-y-4">
-                  {/* Compact Add Comment */}
+                  {/* Add Comment */}
                   <div className="bg-blue-50 dark:bg-slate-800 rounded-lg p-4 border border-blue-200 dark:border-slate-600">
                     <div className="flex gap-3">
                       <img
@@ -957,7 +922,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                     </div>
                   </div>
 
-                  {/* Compact Comments */}
+                  {/* Comments */}
                   <div className="space-y-3">
                     {cardComments.map((comment) => {
                       const avatarUrl = getAvatarUrl(comment.author?.avatar) || "/placeholder.svg"
@@ -1005,7 +970,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
             </div>
           </div>
 
-          {/* Compact Sidebar */}
+          {/* Sidebar */}
           <div className="w-64 bg-gray-50 dark:bg-slate-800 border-l border-gray-200 dark:border-slate-700 p-4 overflow-y-auto">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">Card Details</h3>
 
@@ -1070,7 +1035,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
           </div>
         </div>
 
-        {/* Compact Save Button */}
+        {/* Save Button */}
         {hasChanges && (
           <div className="border-t border-gray-200 dark:border-slate-700 p-4 bg-white dark:bg-slate-800">
             <div className="flex justify-between items-center">
@@ -1091,7 +1056,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={saving || !!urlError}
+                  disabled={saving}
                   className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                 >
                   {saving ? (
