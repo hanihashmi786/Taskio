@@ -26,7 +26,11 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
-    --radius: 0.75rem;
+    --radius: 0.6375rem; /* 85% of 0.75rem */
+    /* 85% scaling variables */
+    --scale-factor: 0.85;
+    --base-font-size: 0.85rem; /* 85% of 1rem */
+    --base-spacing: 0.85rem; /* 85% of 1rem */
   }
 
   .dark {
@@ -55,12 +59,18 @@
     border-color: hsl(var(--border));
   }
 
+  html {
+    font-size: 13.6px; /* 85% of 16px */
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-size: var(--base-font-size);
     transition: background-color 0.2s ease, color 0.2s ease;
+    transform-origin: top left;
   }
 
   h1,
@@ -72,27 +82,46 @@
     font-weight: 600;
     letter-spacing: -0.025em;
   }
+
+  h1 {
+    font-size: 2.125rem;
+  } /* 85% of 2.5rem */
+  h2 {
+    font-size: 1.7rem;
+  } /* 85% of 2rem */
+  h3 {
+    font-size: 1.275rem;
+  } /* 85% of 1.5rem */
+  h4 {
+    font-size: 1.0625rem;
+  } /* 85% of 1.25rem */
+  h5 {
+    font-size: 0.95625rem;
+  } /* 85% of 1.125rem */
+  h6 {
+    font-size: 0.85rem;
+  } /* 85% of 1rem */
 }
 
-/* Custom scrollbar styles */
+/* Custom scrollbar styles - scaled up to default */
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(59, 130, 246, 0.5) rgba(156, 163, 175, 0.1);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6.8px; /* 85% of 8px */
+  height: 6.8px; /* 85% of 8px */
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
   background: rgba(156, 163, 175, 0.1);
-  border-radius: 4px;
+  border-radius: 3.4px; /* 85% of 4px */
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(147, 51, 234, 0.6));
-  border-radius: 4px;
+  border-radius: 3.4px; /* 85% of 4px */
   transition: all 0.2s ease;
 }
 
@@ -125,7 +154,7 @@
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-7.5px); /* 75% of -10px */
   }
   to {
     opacity: 1;
@@ -133,13 +162,13 @@
   }
 }
 
-/* Card styles */
+/* Card styles - scaled up to default */
 .card-shadow {
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0.85px 2.55px 0 rgba(0, 0, 0, 0.1), 0 0.85px 1.7px 0 rgba(0, 0, 0, 0.06);
 }
 
 .card-shadow:hover {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 3.4px 5.1px -0.85px rgba(0, 0, 0, 0.1), 0 1.7px 3.4px -0.85px rgba(0, 0, 0, 0.06);
 }
 
 .card-hover {
@@ -147,7 +176,7 @@
 }
 
 .card-hover:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1.7px); /* 85% of -2px */
 }
 
 .btn-animate {
@@ -155,7 +184,7 @@
 }
 
 .btn-animate:hover {
-  transform: translateY(-1px);
+  transform: translateY(-0.85px); /* 85% of -1px */
 }
 
 /* Interactive elements */
@@ -164,7 +193,7 @@
 }
 
 .interactive:hover {
-  transform: translateY(-1px);
+  transform: translateY(-0.85px); /* 85% of -1px */
 }
 
 /* Focus styles */
@@ -187,9 +216,9 @@
   overflow: hidden;
 }
 
-/* Rich text content styles for cards */
+/* Rich text content styles for cards - scaled up to default */
 .card-description {
-  font-size: 0.75rem;
+  font-size: 0.6375rem; /* 85% of 0.75rem */
   line-height: 1.4;
 }
 
@@ -215,7 +244,7 @@
 .card-description ul,
 .card-description ol {
   margin: 0;
-  padding-left: 1rem;
+  padding-left: 0.85rem; /* 85% of 1rem */
   list-style-position: outside;
 }
 
@@ -228,7 +257,7 @@
 }
 
 .card-description li {
-  margin: 0.125rem 0;
+  margin: 0.10625rem 0; /* 85% of 0.125rem */
 }
 
 .card-description a {
@@ -247,4 +276,29 @@
 
 .dark .card-description a:hover {
   color: #93c5fd;
+}
+
+/* Global scaling for all components */
+.app-container {
+  transform: scale(0.85);
+  transform-origin: top left;
+  width: 117.65%; /* 100 / 0.85 */
+  height: 117.65%;
+}
+
+/* Responsive scaling adjustments */
+@media (max-width: 768px) {
+  .app-container {
+    transform: scale(0.85);
+    width: 117.65%;
+    height: 117.65%;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-container {
+    transform: scale(0.8);
+    width: 125%;
+    height: 125%;
+  }
 }

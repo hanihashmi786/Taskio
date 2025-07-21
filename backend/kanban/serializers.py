@@ -125,7 +125,7 @@ class BoardSerializer(serializers.ModelSerializer):
         model = Board
         fields = [
             "id", "title", "description", "color", "icon",
-            "created_by", "created_at", "lists", "members"
+            "created_by", "created_at", "lists", "members", "background_theme"
         ]
 
     def get_lists(self, obj):

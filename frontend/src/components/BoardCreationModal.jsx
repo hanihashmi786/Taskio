@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { X, Plus, Palette, Type, FileText, Edit3 } from "lucide-react"
+import { X, Plus, Palette, Type, FileText, Edit3, ImageIcon } from "lucide-react"
 import useBoardStore from "../store/boardStore"
 
 const colorOptions = [
@@ -14,12 +14,22 @@ const colorOptions = [
   { value: "bg-gray-500", label: "Gray", preview: "bg-gray-500" },
 ]
 
+const backgroundThemes = [
+  { id: "blue", name: "Ocean Blue", value: "bg-gradient-to-br from-blue-400 to-blue-600" },
+  { id: "green", name: "Forest Green", value: "bg-gradient-to-br from-green-400 to-green-600" },
+  { id: "purple", name: "Royal Purple", value: "bg-gradient-to-br from-purple-400 to-purple-600" },
+  { id: "sunset", name: "Sunset", value: "bg-gradient-to-br from-orange-400 via-red-500 to-pink-500" },
+  { id: "ocean", name: "Ocean", value: "bg-gradient-to-br from-blue-400 via-blue-500 to-cyan-500" },
+  { id: "mint", name: "Mint", value: "bg-gradient-to-br from-green-300 via-blue-500 to-purple-600" },
+]
+
 const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpdated }) => {
   const { addBoard, editBoard, setCurrentBoard } = useBoardStore()
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     color: "bg-blue-500",
+    backgroundTheme: null,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isEditMode = !!board
@@ -30,16 +40,19 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
         title: board.title || "",
         description: board.description || "",
         color: board.color || "bg-blue-500",
+        backgroundTheme: board.backgroundTheme || null,
       })
     }
   }, [isEditMode, board])
 
   const handleInputChange = (field, value) => {
+    console.log('handleInputChange called:', field, value)
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    console.log('handleSubmit called, closing modal soon')
     if (!formData.title.trim()) return
     setIsSubmitting(true)
     try {
@@ -48,6 +61,7 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
           title: formData.title.trim(),
           description: formData.description.trim(),
           color: formData.color,
+          backgroundTheme: formData.backgroundTheme,
         })
         if (onBoardUpdated) onBoardUpdated(updated)
       } else {
@@ -55,6 +69,7 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
           title: formData.title.trim(),
           description: formData.description.trim(),
           color: formData.color,
+          backgroundTheme: formData.backgroundTheme,
         })
         setCurrentBoard(created.id)
         if (onBoardCreated) onBoardCreated(created)
@@ -65,6 +80,17 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const getPreviewStyle = () => {
+    if (formData.backgroundTheme) {
+      return {
+        background: formData.backgroundTheme.value
+          .replace("bg-gradient-to-br", "linear-gradient(135deg,")
+          .replace("bg-", ""),
+      }
+    }
+    return {}
   }
 
   return (
@@ -91,16 +117,25 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Board Preview */}
-          <div className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-4 border border-gray-200 dark:border-slate-700/50">
-            <div className="flex items-center gap-3 mb-2">
-              <div className={`w-4 h-4 rounded-full ${formData.color}`} />
-              <span className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-                {formData.title || "Board Title"}
-              </span>
+          <div
+            className="bg-gray-50 dark:bg-slate-900/50 rounded-xl p-4 border border-gray-200 dark:border-slate-700/50 relative overflow-hidden"
+            style={getPreviewStyle()}
+          >
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`w-4 h-4 rounded-full ${formData.color}`} />
+                <span
+                  className={`text-lg font-semibold ${formData.backgroundTheme ? "text-white drop-shadow" : "text-gray-900 dark:text-slate-100"}`}
+                >
+                  {formData.title || "Board Title"}
+                </span>
+              </div>
+              <p
+                className={`text-sm ml-7 ${formData.backgroundTheme ? "text-white/90 drop-shadow" : "text-gray-600 dark:text-slate-400"}`}
+              >
+                {formData.description || "Board description will appear here"}
+              </p>
             </div>
-            <p className="text-sm text-gray-600 dark:text-slate-400 ml-7">
-              {formData.description || "Board description will appear here"}
-            </p>
           </div>
 
           {/* Title */}
@@ -155,6 +190,43 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
                 >
                   <div className={`w-full h-6 rounded ${color.preview} mb-2`} />
                   <span className="text-xs text-gray-700 dark:text-slate-300">{color.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Background Theme Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+              <ImageIcon className="w-4 h-4" />
+              Background Theme
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => handleInputChange("backgroundTheme", null)}
+                className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                  !formData.backgroundTheme
+                    ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                    : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500"
+                }`}
+              >
+                <div className="w-full h-6 rounded bg-gray-100 dark:bg-slate-700 mb-2" />
+                <span className="text-xs text-gray-700 dark:text-slate-300">Default</span>
+              </button>
+              {backgroundThemes.map((theme) => (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => handleInputChange("backgroundTheme", theme)}
+                  className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                    formData.backgroundTheme?.id === theme.id
+                      ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                      : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500"
+                  }`}
+                >
+                  <div className={`w-full h-6 rounded mb-2 ${theme.value}`} />
+                  <span className="text-xs text-gray-700 dark:text-slate-300">{theme.name}</span>
                 </button>
               ))}
             </div>

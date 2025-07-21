@@ -98,3 +98,5 @@ db.sqlite3
 # Ignore Python bytecode cache
 __pycache__/
 backend/**/__pycache__/
+frontend.zip
+backend.zip

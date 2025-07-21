@@ -5,6 +5,7 @@ import { useApp } from "../context/AppContext"
 import { useTheme } from "../context/ThemeContext"
 import useBoardStore from "../store/boardStore"
 import BoardMembers from "./BoardMembers"
+import NotificationCenter from "./NotificationCenter"
 import { Sun, Moon, Search, Menu, User, LogOut, Users, Bell, Settings, Loader2 } from "lucide-react"
 import API from "../api"
 
@@ -38,6 +39,52 @@ const Header = () => {
   const isBoardView = location.pathname.includes("/dashboard/board/")
   const isAuthenticated = !!contextUser?.id
 
+  // Sample notifications for demonstration
+  const sampleNotifications = [
+    {
+      id: 1,
+      type: "member_joined",
+      message: "Hani joined the board 'Project Alpha'",
+      created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      read: false,
+      board_name: "Project Alpha",
+      user_name: "Hani",
+    },
+    {
+      id: 2,
+      type: "card_assigned",
+      message: "You are assigned the card 'Fix login bug'",
+      created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+      read: false,
+      card_title: "Fix login bug",
+    },
+    {
+      id: 3,
+      type: "mention",
+      message: "You are mentioned in description of 'Update documentation'",
+      created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      read: false,
+      card_title: "Update documentation",
+    },
+    {
+      id: 4,
+      type: "due_date_near",
+      message: "The deadline is near for 'Complete user testing'",
+      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      read: true,
+      card_title: "Complete user testing",
+    },
+    {
+      id: 5,
+      type: "card_moved",
+      message: "Card 'Design mockups' was moved to 'In Progress'",
+      created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+      read: true,
+      card_title: "Design mockups",
+      list_name: "In Progress",
+    },
+  ]
+
   // Fetch user data on component mount if authenticated but no user data
   useEffect(() => {
     const fetchUserData = async () => {
@@ -64,25 +111,12 @@ const Header = () => {
     fetchUserData()
   }, [contextUser, setUser])
 
-  // Fetch notifications
+  // Initialize notifications with sample data
   useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!isAuthenticated) return
-
-      try {
-        const response = await API.get("/notifications/")
-        setNotifications(response.data)
-        setUnreadCount(response.data.filter((n) => !n.read).length)
-      } catch (error) {
-        console.error("Failed to fetch notifications:", error)
-      }
+    if (isAuthenticated) {
+      setNotifications(sampleNotifications)
+      setUnreadCount(sampleNotifications.filter((n) => !n.read).length)
     }
-
-    fetchNotifications()
-    // Set up polling for notifications
-    const interval = setInterval(fetchNotifications, 60000) // Every minute
-
-    return () => clearInterval(interval)
   }, [isAuthenticated])
 
   // --- Always get the freshest user info (context + localStorage fallback) ---
@@ -148,7 +182,8 @@ const Header = () => {
     if (unreadCount === 0) return
 
     try {
-      await API.post("/notifications/mark-read/")
+      // In a real app, this would be an API call
+      // await API.post("/notifications/mark-read/")
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
       setUnreadCount(0)
     } catch (error) {
@@ -248,38 +283,18 @@ const Header = () => {
                 >
                   <Bell className="w-5 h-5 text-gray-600 dark:text-slate-300" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center rounded-full">
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs flex items-center justify-center rounded-full font-bold animate-pulse">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
                 </button>
 
                 {showNotifications && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
-                    <div className="absolute right-0 top-12 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg py-2 z-20 w-80 max-h-[400px] overflow-y-auto">
-                      <div className="px-4 py-2 border-b border-gray-200 dark:border-slate-600">
-                        <h3 className="font-medium text-gray-900 dark:text-slate-100">Notifications</h3>
-                      </div>
-                      {notifications.length === 0 ? (
-                        <div className="px-4 py-6 text-center text-gray-500 dark:text-slate-400">
-                          <p>No notifications</p>
-                        </div>
-                      ) : (
-                        notifications.map((notification) => (
-                          <div
-                            key={notification.id}
-                            className={`px-4 py-3 border-b border-gray-100 dark:border-slate-700 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-700/50 ${!notification.read ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
-                          >
-                            <p className="text-sm text-gray-800 dark:text-slate-200">{notification.message}</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                              {new Date(notification.created_at).toLocaleString()}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </>
+                  <NotificationCenter
+                    notifications={notifications}
+                    onClose={() => setShowNotifications(false)}
+                    onMarkAsRead={markNotificationsAsRead}
+                  />
                 )}
               </div>
             )}

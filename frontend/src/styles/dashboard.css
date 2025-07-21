@@ -1,17 +1,21 @@
 /**
- * Dashboard Styles
+ * Dashboard Styles - 75% Scaled
  *
  * Additional styles for the Trello dashboard components.
  * These complement Tailwind CSS classes.
  */
 
-/* Dark mode variables */
+/* Dark mode variables - scaled down */
 :root {
   --bg-primary: #ffffff;
   --bg-secondary: #f9fafb;
   --text-primary: #111827;
   --text-secondary: #6b7280;
   --border-color: #e5e7eb;
+  --sidebar-width: 180px; /* 75% of 240px */
+  --header-height: 48px; /* 75% of 64px */
+  --card-min-height: 60px; /* 75% of 80px */
+  --list-width: 210px; /* 75% of 280px */
 }
 
 .dark {
@@ -27,10 +31,10 @@
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - scaled down */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4.5px; /* 75% of 6px */
+  height: 4.5px; /* 75% of 6px */
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
@@ -39,7 +43,7 @@
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #d1d5db;
-  border-radius: 3px;
+  border-radius: 2.25px; /* 75% of 3px */
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
@@ -64,13 +68,14 @@
 }
 
 .dragging {
-  @apply opacity-50 transform rotate-2;
+  @apply opacity-50;
+  transform: rotate(1.5deg); /* 75% of 2deg */
 }
 
-/* Card animations */
+/* Card animations - scaled down */
 .card-enter {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(-7.5px); /* 75% of -10px */
 }
 
 .card-enter-active {
@@ -86,14 +91,14 @@
 
 .card-exit-active {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(-7.5px); /* 75% of -10px */
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-/* List animations */
+/* List animations - scaled down */
 .list-enter {
   opacity: 0;
-  transform: translateX(-20px);
+  transform: translateX(-15px); /* 75% of -20px */
 }
 
 .list-enter-active {
@@ -102,7 +107,7 @@
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
-/* Modal animations */
+/* Modal animations - scaled down */
 .modal-overlay {
   animation: fadeIn 0.2s ease-out;
 }
@@ -123,7 +128,7 @@
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(-20px) scale(0.95);
+    transform: translateY(-15px) scale(0.95); /* 75% of -20px */
   }
   to {
     opacity: 1;
@@ -131,15 +136,15 @@
   }
 }
 
-/* Responsive utilities */
+/* Responsive utilities - scaled down */
 @media (max-width: 768px) {
   .board-list {
-    min-width: 280px;
+    min-width: 210px; /* 75% of 280px */
   }
 
   .card-modal {
-    margin: 1rem;
-    max-height: calc(100vh - 2rem);
+    margin: 0.75rem; /* 75% of 1rem */
+    max-height: calc(100vh - 1.5rem); /* 75% of 2rem */
   }
 }
 
@@ -167,11 +172,13 @@
   overflow: hidden;
 }
 
-/* Loading states */
+/* Loading states - scaled down */
 .loading-skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
+  height: 15px; /* 75% of 20px */
+  border-radius: 3px; /* 75% of 4px */
 }
 
 .dark .loading-skeleton {
@@ -186,6 +193,147 @@
   100% {
     background-position: -200% 0;
   }
+}
+
+/* Sidebar specific styles - scaled down */
+.sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+}
+
+.sidebar-item {
+  padding: 6px 12px; /* 75% of 8px 16px */
+  margin: 3px 0; /* 75% of 4px 0 */
+  border-radius: 4.5px; /* 75% of 6px */
+  font-size: 0.75rem; /* 75% of 1rem */
+}
+
+/* Header styles - scaled down */
+.header {
+  height: var(--header-height);
+  padding: 0 18px; /* 75% of 0 24px */
+}
+
+.header-title {
+  font-size: 1.125rem; /* 75% of 1.5rem */
+  font-weight: 600;
+}
+
+/* Card styles - scaled down */
+.kanban-card {
+  min-height: var(--card-min-height);
+  padding: 9px; /* 75% of 12px */
+  margin-bottom: 6px; /* 75% of 8px */
+  border-radius: 4.5px; /* 75% of 6px */
+  font-size: 0.75rem; /* 75% of 1rem */
+}
+
+.kanban-card-title {
+  font-size: 0.75rem; /* 75% of 1rem */
+  font-weight: 500;
+  margin-bottom: 3px; /* 75% of 4px */
+}
+
+.kanban-card-description {
+  font-size: 0.5625rem; /* 75% of 0.75rem */
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+/* List styles - scaled down */
+.kanban-list {
+  width: var(--list-width);
+  margin-right: 9px; /* 75% of 12px */
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px; /* 75% of 8px */
+  padding: 9px; /* 75% of 12px */
+}
+
+.kanban-list-header {
+  padding: 6px 9px; /* 75% of 8px 12px */
+  margin-bottom: 6px; /* 75% of 8px */
+  font-size: 0.75rem; /* 75% of 1rem */
+  font-weight: 600;
+}
+
+/* Button styles - scaled down */
+.btn-primary {
+  padding: 4.5px 12px; /* 75% of 6px 16px */
+  font-size: 0.75rem; /* 75% of 1rem */
+  border-radius: 3.75px; /* 75% of 5px */
+}
+
+.btn-secondary {
+  padding: 3.75px 9px; /* 75% of 5px 12px */
+  font-size: 0.6875rem; /* 75% of 0.875rem */
+  border-radius: 3px; /* 75% of 4px */
+}
+
+.btn-icon {
+  width: 24px; /* 75% of 32px */
+  height: 24px; /* 75% of 32px */
+  padding: 3px; /* 75% of 4px */
+}
+
+/* Form styles - scaled down */
+.form-input {
+  padding: 4.5px 9px; /* 75% of 6px 12px */
+  font-size: 0.75rem; /* 75% of 1rem */
+  border-radius: 3.75px; /* 75% of 5px */
+  min-height: 30px; /* 75% of 40px */
+}
+
+.form-textarea {
+  padding: 6px 9px; /* 75% of 8px 12px */
+  font-size: 0.75rem; /* 75% of 1rem */
+  border-radius: 3.75px; /* 75% of 5px */
+  min-height: 60px; /* 75% of 80px */
+}
+
+.form-label {
+  font-size: 0.6875rem; /* 75% of 0.875rem */
+  font-weight: 500;
+  margin-bottom: 3px; /* 75% of 4px */
+}
+
+/* Modal styles - scaled down */
+.modal-content {
+  max-width: 375px; /* 75% of 500px */
+  padding: 18px; /* 75% of 24px */
+  border-radius: 6px; /* 75% of 8px */
+}
+
+.modal-header {
+  font-size: 1.125rem; /* 75% of 1.5rem */
+  font-weight: 600;
+  margin-bottom: 12px; /* 75% of 16px */
+}
+
+/* Avatar styles - scaled down */
+.avatar-sm {
+  width: 18px; /* 75% of 24px */
+  height: 18px; /* 75% of 24px */
+  border-radius: 9px; /* 75% of 12px */
+}
+
+.avatar-md {
+  width: 24px; /* 75% of 32px */
+  height: 24px; /* 75% of 32px */
+  border-radius: 12px; /* 75% of 16px */
+}
+
+.avatar-lg {
+  width: 36px; /* 75% of 48px */
+  height: 36px; /* 75% of 48px */
+  border-radius: 18px; /* 75% of 24px */
+}
+
+/* Badge styles - scaled down */
+.badge {
+  padding: 1.5px 4.5px; /* 75% of 2px 6px */
+  font-size: 0.5625rem; /* 75% of 0.75rem */
+  border-radius: 2.25px; /* 75% of 3px */
+  font-weight: 500;
 }
 
 /* Print styles */

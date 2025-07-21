@@ -12,6 +12,7 @@ class Board(models.Model):
     icon = models.CharField(max_length=10, default="📋")
     members = models.ManyToManyField(User, through="BoardMembership", related_name="boards")
     created_at = models.DateTimeField(default=timezone.now)
+    background_theme = models.JSONField(default=dict, blank=True)
 
 class BoardMembership(models.Model):
     ROLE_CHOICES = (

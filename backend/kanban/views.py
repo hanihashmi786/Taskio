@@ -13,7 +13,11 @@ from django.shortcuts import get_object_or_404
 class BoardAPI(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request, id=None):
+        if id is not None:
+            board = get_object_or_404(Board, id=id, members=request.user)
+            serializer = BoardSerializer(board)
+            return Response(serializer.data)
         boards = Board.objects.filter(members=request.user)
         serializer = BoardSerializer(boards, many=True)
         return Response(serializer.data)
