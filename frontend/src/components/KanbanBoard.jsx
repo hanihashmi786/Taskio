@@ -104,42 +104,38 @@ const KanbanBoard = ({ onCardClick }) => {
     if (board) {
       await editBoard(board.id, {
         ...board,
-        backgroundTheme: theme,
+        background_theme: theme, // use snake_case for backend
       })
       setShowThemeSelector(false)
     }
   }
 
   const getBackgroundStyle = () => {
-    const theme = board?.backgroundTheme
+    const theme = board?.background_theme;
     if (!theme || theme.type === "default") {
       return {
         background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
-      }
+      };
     }
 
     // Handle image backgrounds
     if (theme.url || theme.type === "image") {
       return {
-        backgroundImage: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${theme.url})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        backgroundAttachment: "fixed",
-      }
-    }
-
-    const style = {
-      background: theme.value,
+        background: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url(${theme.url}) center/cover no-repeat fixed`,
+      };
     }
 
     if (theme.pattern) {
-      style.backgroundImage = theme.pattern
-      style.backgroundSize = theme.patternSize || "20px 20px"
+      return {
+        backgroundImage: `${theme.pattern}, ${theme.value}`,
+        backgroundSize: theme.patternSize || "20px 20px",
+      };
     }
 
-    return style
-  }
+    return {
+      background: theme.value,
+    };
+  };
 
   if (!board) {
     return (
@@ -248,7 +244,7 @@ const KanbanBoard = ({ onCardClick }) => {
       {/* Background Theme Selector Modal */}
       {showThemeSelector && (
         <BackgroundThemeSelector
-          currentTheme={board?.backgroundTheme}
+          currentTheme={board?.background_theme} // use snake_case
           onThemeChange={handleThemeChange}
           onClose={() => setShowThemeSelector(false)}
         />

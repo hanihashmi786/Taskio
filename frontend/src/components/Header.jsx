@@ -195,7 +195,6 @@ const Header = () => {
     if (isDashboardHome) return "Dashboard"
     if (location.pathname === "/dashboard/boards") return "All Boards"
     if (location.pathname === "/dashboard/profile") return "Profile"
-    if (location.pathname === "/dashboard/settings") return "Settings"
     if (isBoardView && currentBoard) return currentBoard.title
     return "Task Pro"
   }
@@ -340,16 +339,7 @@ const Header = () => {
                         Profile
                       </button>
 
-                      <button
-                        onClick={() => {
-                          navigate("/dashboard/settings")
-                          setShowUserMenu(false)
-                        }}
-                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Settings
-                      </button>
+                     
 
                       <hr className="my-1 border-gray-200 dark:border-slate-600" />
 

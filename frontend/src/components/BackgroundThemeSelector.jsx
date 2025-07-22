@@ -1,55 +1,47 @@
 "use client"
-import { useState, useRef } from "react"
-import { Palette, Sparkles, Waves, Check, X, Upload, ImageIcon } from "lucide-react"
+import { useState, useRef, useEffect } from "react"
+import { Palette, Sparkles, Waves, Check, X, Upload, ImageIcon } from 'lucide-react'
 
 const natureImages = [
   {
-    id: "mountain-lake",
+    id: "unsplash-mountain",
     name: "Mountain Lake",
-    url: "/placeholder.svg?height=400&width=800",
-    preview: "bg-gradient-to-br from-blue-400 to-green-500",
+    url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
   },
   {
-    id: "forest-path",
+    id: "unsplash-forest",
     name: "Forest Path",
-    url: "/placeholder.svg?height=400&width=800",
-    preview: "bg-gradient-to-br from-green-600 to-green-800",
+    url: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=800&q=80",
   },
   {
-    id: "ocean-sunset",
+    id: "unsplash-ocean",
     name: "Ocean Sunset",
-    url: "/placeholder.svg?height=400&width=800",
-    preview: "bg-gradient-to-br from-orange-400 to-pink-500",
+    url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
   },
   {
-    id: "mountain-peaks",
+    id: "unsplash-peaks",
     name: "Mountain Peaks",
-    url: "/placeholder.svg?height=400&width=800",
-    preview: "bg-gradient-to-br from-blue-300 to-gray-600",
+    url: "https://images.unsplash.com/photo-1465378550170-c1a9136a3b99?auto=format&fit=crop&w=800&q=80",
   },
   {
-    id: "autumn-forest",
+    id: "unsplash-autumn",
     name: "Autumn Forest",
-    url: "/placeholder.svg?height=400&width=800",
-    preview: "bg-gradient-to-br from-yellow-400 to-red-600",
+    url: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=800&q=80",
   },
   {
-    id: "lavender-field",
+    id: "unsplash-lavender",
     name: "Lavender Field",
-    url: "/placeholder.svg?height=400&width=800",
-    preview: "bg-gradient-to-br from-purple-400 to-blue-400",
+    url: "https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?auto=format&fit=crop&w=800&q=80",
   },
   {
-    id: "desert-dunes",
+    id: "unsplash-desert",
     name: "Desert Dunes",
-    url: "/placeholder.svg?height=400&width=800",
-    preview: "bg-gradient-to-br from-yellow-300 to-orange-500",
+    url: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=800&q=80",
   },
   {
-    id: "cherry-blossoms",
+    id: "unsplash-cherry",
     name: "Cherry Blossoms",
-    url: "/placeholder.svg?height=400&width=800",
-    preview: "bg-gradient-to-br from-pink-300 to-green-400",
+    url: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=800&q=80",
   },
 ]
 
@@ -181,7 +173,29 @@ const backgroundThemes = {
 
 const BackgroundThemeSelector = ({ currentTheme, onThemeChange, onClose }) => {
   const [activeTab, setActiveTab] = useState("nature")
-  const [customImages, setCustomImages] = useState([])
+  const [customImages, setCustomImages] = useState(() => {
+    // Load from localStorage for persistence
+    try {
+      const saved = localStorage.getItem('customBoardBackgrounds')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  // --- Sync with localStorage on mount ---
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('customBoardBackgrounds')
+      if (saved) {
+        setCustomImages(JSON.parse(saved))
+      }
+    } catch {
+      setCustomImages([])
+      localStorage.removeItem('customBoardBackgrounds')
+    }
+  }, [])
+
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef(null)
 
@@ -195,80 +209,119 @@ const BackgroundThemeSelector = ({ currentTheme, onThemeChange, onClose }) => {
   const handleImageUpload = async (event) => {
     const file = event.target.files?.[0]
     if (!file) return
-
     setUploading(true)
     try {
-      // Create a local URL for the uploaded image
-      const imageUrl = URL.createObjectURL(file)
-      const newCustomImage = {
-        id: `custom-${Date.now()}`,
-        name: file.name.split(".")[0],
-        url: imageUrl,
-        preview: "bg-gradient-to-br from-gray-400 to-gray-600",
-        isCustom: true,
-      }
-
-      setCustomImages((prev) => [...prev, newCustomImage])
-
-      // Auto-select the uploaded image
-      handleThemeSelect({
-        ...newCustomImage,
-        type: "image",
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}boards/upload-background/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('access_token') || sessionStorage.getItem('access_token')}`,
+        },
+        body: formData,
       })
+      const data = await res.json()
+      if (data.url) {
+        let imageUrl = data.url
+        let backendBaseUrl = import.meta.env.VITE_API_BASE_URL
+        // Remove /api or /api/ from the end if present
+        backendBaseUrl = backendBaseUrl.replace(/\/api\/?$/, '')
+        if (imageUrl.startsWith('/')) {
+          imageUrl = backendBaseUrl.replace(/\/$/, '') + imageUrl
+        }
+        const newCustomImage = {
+          id: `custom-${Date.now()}`,
+          name: file.name.split(".")[0],
+          url: imageUrl,
+          isCustom: true,
+        }
+        setCustomImages((prev) => {
+          const updated = [...prev, newCustomImage]
+          localStorage.setItem('customBoardBackgrounds', JSON.stringify(updated))
+          return updated
+        })
+        // Auto-select the uploaded image
+        handleThemeSelect({
+          ...newCustomImage,
+          type: "image",
+        })
+      }
     } catch (error) {
-      console.error("Error uploading image:", error)
+      alert('Image upload failed.')
     } finally {
       setUploading(false)
       event.target.value = null
     }
   }
 
-  const renderThemeGrid = (themes) => {
+  // Add a handler to delete a custom image
+  const handleDeleteCustomImage = (id) => {
+    setCustomImages((prev) => {
+      const updated = prev.filter(img => img.id !== id)
+      localStorage.setItem('customBoardBackgrounds', JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  const renderThemeGrid = (themes, isCustom = false) => {
     return (
       <div className="grid grid-cols-4 gap-4">
         {themes.map((theme) => (
-          <button
-            key={theme.id}
-            onClick={() => handleThemeSelect(theme)}
-            className={`relative h-24 rounded-xl border-2 transition-all duration-200 overflow-hidden group ${
-              currentTheme?.id === theme.id
-                ? "border-blue-400 ring-2 ring-blue-400/30 scale-105"
-                : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 hover:scale-102"
-            }`}
-          >
-            {theme.url ? (
-              <img
-                src={theme.url || "/placeholder.svg"}
-                alt={theme.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = "none"
-                  e.target.nextSibling.style.display = "block"
-                }}
+          <div key={theme.id} className="relative h-24 rounded-xl border-2 transition-all duration-200 overflow-hidden group">
+            <button
+              onClick={() => handleThemeSelect(theme)}
+              className={`absolute inset-0 w-full h-full z-10 ${
+                currentTheme?.id === theme.id
+                  ? "border-blue-400 ring-2 ring-blue-400/30 scale-105"
+                  : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 hover:scale-102"
+              }`}
+              style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              {theme.url ? (
+                <img
+                  src={theme.url || "/placeholder.svg"}
+                  alt={theme.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.onerror = null
+                    e.target.src = "/placeholder.svg"
+                    e.target.parentNode.parentNode.classList.add('broken-image')
+                  }}
+                />
+              ) : null}
+              <div
+                className={`w-full h-full ${theme.preview} ${theme.url ? "hidden" : ""}`}
+                style={
+                  theme.pattern
+                    ? {
+                        backgroundImage: theme.pattern,
+                        backgroundSize: theme.patternSize || "20px 20px",
+                      }
+                    : {}
+                }
               />
-            ) : null}
-            <div
-              className={`w-full h-full ${theme.preview} ${theme.url ? "hidden" : ""}`}
-              style={
-                theme.pattern
-                  ? {
-                      backgroundImage: theme.pattern,
-                      backgroundSize: theme.patternSize || "20px 20px",
-                    }
-                  : {}
-              }
-            />
-            {currentTheme?.id === theme.id && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-                <div className="bg-white/90 rounded-full p-2">
-                  <Check className="w-5 h-5 text-green-600" />
+              {currentTheme?.id === theme.id && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+                  <div className="bg-white/90 rounded-full p-2">
+                    <Check className="w-5 h-5 text-green-600" />
+                  </div>
                 </div>
+              )}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {theme.name}
               </div>
+            </button>
+            {/* Delete button for custom images */}
+            {isCustom && (
+              <button
+                onClick={() => handleDeleteCustomImage(theme.id)}
+                className="absolute top-1 right-1 z-20 bg-white/80 hover:bg-red-100 text-red-600 rounded-full p-1 shadow"
+                title="Delete image"
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 text-center opacity-0 group-hover:opacity-100 transition-opacity">
-              {theme.name}
-            </div>
-          </button>
+          </div>
         ))}
       </div>
     )
@@ -312,6 +365,17 @@ const BackgroundThemeSelector = ({ currentTheme, onThemeChange, onClose }) => {
             Nature Images
           </button>
           <button
+            onClick={() => setActiveTab("custom")}
+            className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-colors ${
+              activeTab === "custom"
+                ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
+            }`}
+          >
+            <Upload className="w-4 h-4" />
+            Your Images
+          </button>
+          <button
             onClick={() => setActiveTab("gradients")}
             className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-medium transition-colors ${
               activeTab === "gradients"
@@ -353,19 +417,21 @@ const BackgroundThemeSelector = ({ currentTheme, onThemeChange, onClose }) => {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2">
                   {activeTab === "nature" && "Nature Images"}
+                  {activeTab === "custom" && "Your Images"}
                   {activeTab === "gradients" && "Gradient Themes"}
                   {activeTab === "patterns" && "Pattern Themes"}
                   {activeTab === "solid" && "Solid Color Themes"}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-slate-400">
                   {activeTab === "nature" && "Beautiful nature photography for a calming workspace"}
+                  {activeTab === "custom" && "Your uploaded backgrounds (only visible to you)"}
                   {activeTab === "gradients" && "Beautiful gradient backgrounds for a modern look"}
                   {activeTab === "patterns" && "Subtle patterns to add texture to your board"}
                   {activeTab === "solid" && "Clean solid colors for a minimalist approach"}
                 </p>
               </div>
 
-              {activeTab === "nature" && (
+              {activeTab === "custom" && (
                 <div>
                   <input
                     type="file"
@@ -396,7 +462,8 @@ const BackgroundThemeSelector = ({ currentTheme, onThemeChange, onClose }) => {
             </div>
           </div>
 
-          {activeTab === "nature" && renderThemeGrid(allNatureImages)}
+          {activeTab === "nature" && renderThemeGrid(natureImages)}
+          {activeTab === "custom" && renderThemeGrid(customImages, true)}
           {activeTab === "gradients" && renderThemeGrid(backgroundThemes.gradients)}
           {activeTab === "patterns" && renderThemeGrid(backgroundThemes.patterns)}
           {activeTab === "solid" && renderThemeGrid(backgroundThemes.solid)}

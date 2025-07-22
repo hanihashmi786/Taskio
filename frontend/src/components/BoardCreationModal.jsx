@@ -21,7 +21,14 @@ const backgroundThemes = [
   { id: "sunset", name: "Sunset", value: "bg-gradient-to-br from-orange-400 via-red-500 to-pink-500" },
   { id: "ocean", name: "Ocean", value: "bg-gradient-to-br from-blue-400 via-blue-500 to-cyan-500" },
   { id: "mint", name: "Mint", value: "bg-gradient-to-br from-green-300 via-blue-500 to-purple-600" },
-]
+  // Unsplash nature image themes (all working URLs)
+  { id: "unsplash-mountain", name: "Mountain", type: "image", url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80" },
+  { id: "unsplash-forest", name: "Forest", type: "image", url: "https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=800&q=80" },
+  { id: "unsplash-lake", name: "Lake", type: "image", url: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=800&q=80" },
+  { id: "unsplash-desert", name: "Desert", type: "image", url: "https://images.unsplash.com/photo-1465378550170-3edc8cfc0f0c?auto=format&fit=crop&w=800&q=80" },
+  { id: "unsplash-beach", name: "Beach", type: "image", url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80" },
+  { id: "unsplash-river", name: "River", type: "image", url: "https://images.unsplash.com/photo-1444065381814-865dc9da92c0?auto=format&fit=crop&w=800&q=80" },
+];
 
 const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpdated }) => {
   const { addBoard, editBoard, setCurrentBoard } = useBoardStore()
@@ -40,7 +47,7 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
         title: board.title || "",
         description: board.description || "",
         color: board.color || "bg-blue-500",
-        backgroundTheme: board.backgroundTheme || null,
+        backgroundTheme: board.background_theme || null, // use snake_case from backend
       })
     }
   }, [isEditMode, board])
@@ -61,7 +68,7 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
           title: formData.title.trim(),
           description: formData.description.trim(),
           color: formData.color,
-          backgroundTheme: formData.backgroundTheme,
+          background_theme: formData.backgroundTheme, // use snake_case
         })
         if (onBoardUpdated) onBoardUpdated(updated)
       } else {
@@ -69,7 +76,7 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
           title: formData.title.trim(),
           description: formData.description.trim(),
           color: formData.color,
-          backgroundTheme: formData.backgroundTheme,
+          background_theme: formData.backgroundTheme, // use snake_case
         })
         setCurrentBoard(created.id)
         if (onBoardCreated) onBoardCreated(created)
@@ -83,15 +90,48 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
   }
 
   const getPreviewStyle = () => {
-    if (formData.backgroundTheme) {
+    const theme = formData.backgroundTheme;
+    if (!theme) return {};
+    if (theme.type === "image" && theme.url) {
       return {
-        background: formData.backgroundTheme.value
+        backgroundImage: `url(${theme.url})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      };
+    }
+    // Gradient logic
+    if (theme.value) {
+      return {
+        background: theme.value
           .replace("bg-gradient-to-br", "linear-gradient(135deg,")
           .replace("bg-", ""),
-      }
+      };
     }
-    return {}
-  }
+    return {};
+  };
+
+  // Add this handler inside the component
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}boards/upload-background/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('access_token') || sessionStorage.getItem('access_token')}`,
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.url) {
+        handleInputChange('backgroundTheme', { type: 'image', url: data.url });
+      }
+    } catch (err) {
+      alert('Image upload failed.');
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -201,7 +241,7 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
               <ImageIcon className="w-4 h-4" />
               Background Theme
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-3 mb-3">
               <button
                 type="button"
                 onClick={() => handleInputChange("backgroundTheme", null)}
@@ -225,11 +265,29 @@ const BoardCreationModal = ({ onClose, board = null, onBoardCreated, onBoardUpda
                       : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500"
                   }`}
                 >
-                  <div className={`w-full h-6 rounded mb-2 ${theme.value}`} />
+                  {theme.type === "image" && theme.url ? (
+                    <div
+                      className="w-full h-6 rounded mb-2"
+                      style={{
+                        backgroundImage: `url(${theme.url})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    />
+                  ) : (
+                    <div className={`w-full h-6 rounded mb-2 ${theme.value || ""}`} />
+                  )}
                   <span className="text-xs text-gray-700 dark:text-slate-300">{theme.name}</span>
                 </button>
               ))}
             </div>
+            {/* Image upload input */}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-2"
+            />
           </div>
 
           {/* Action Buttons */}

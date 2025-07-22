@@ -8,6 +8,7 @@ from .serializers import (
     LabelSerializer, ChecklistSerializer, ChecklistItemSerializer, CommentSerializer, AttachmentSerializer,
 )
 from django.shortcuts import get_object_or_404
+from rest_framework.parsers import MultiPartParser, FormParser
 
 # ------------------- BOARD -------------------
 class BoardAPI(APIView):
@@ -305,3 +306,17 @@ class AttachmentAPI(APIView):
         attachment.file.delete(save=False)
         attachment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class BoardImageUploadAPI(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+        from django.core.files.storage import default_storage
+        from django.conf import settings
+        path = default_storage.save(f'backgrounds/{file_obj.name}', file_obj)
+        url = settings.MEDIA_URL + path
+        return Response({'url': url}, status=status.HTTP_201_CREATED)
