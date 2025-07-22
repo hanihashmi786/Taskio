@@ -74,3 +74,19 @@ class Attachment(models.Model):
     file = models.FileField(upload_to="attachments/%Y/%m/%d/")
     uploaded_by = models.ForeignKey(User, related_name="attachments", on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(default=timezone.now)
+
+# Notification model for user notifications
+class Notification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
+    message = models.TextField()
+    type = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read = models.BooleanField(default=False)
+    board = models.ForeignKey('Board', null=True, blank=True, on_delete=models.SET_NULL, related_name='notifications')
+    card = models.ForeignKey('Card', null=True, blank=True, on_delete=models.SET_NULL, related_name='notifications')
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} - {self.message[:30]}..."

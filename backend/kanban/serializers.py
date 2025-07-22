@@ -30,6 +30,29 @@ class CommentSerializer(serializers.ModelSerializer):
         fields = ["id", "card", "author", "text", "created_at"]
         read_only_fields = ["id", "author", "created_at"]
 
+    def create(self, validated_data):
+        comment = Comment.objects.create(**validated_data)
+        # --- Mention notification logic ---
+        import re
+        from django.contrib.auth import get_user_model
+        from .models import Notification
+        User = get_user_model()
+        mentioned_usernames = set(re.findall(r"@([\w\-_.]+)", comment.text))
+        for username in mentioned_usernames:
+            try:
+                user = User.objects.get(username=username)
+                if user != comment.author:
+                    Notification.objects.create(
+                        user=user,
+                        message=f'You were mentioned in a comment on card "{comment.card.title}"',
+                        type='mention',
+                        card=comment.card,
+                        board=comment.card.list.board
+                    )
+            except User.DoesNotExist:
+                continue
+        return comment
+
 class AttachmentSerializer(serializers.ModelSerializer):
     uploaded_by = serializers.StringRelatedField(read_only=True)
     file_size = serializers.SerializerMethodField()
@@ -97,12 +120,47 @@ class CardSerializer(serializers.ModelSerializer):
         assignees = validated_data.pop('assignees', None)
         labels = validated_data.pop('labels', None)
 
+        # --- Mention notification logic for card description ---
+        import re
+        from django.contrib.auth import get_user_model
+        from .models import Notification
+        User = get_user_model()
+        old_description = instance.description or ""
+        new_description = validated_data.get('description', old_description)
+        old_mentions = set(re.findall(r"@([\w\-_.]+)", old_description))
+        new_mentions = set(re.findall(r"@([\w\-_.]+)", new_description))
+        added_mentions = new_mentions - old_mentions
+        for username in added_mentions:
+            try:
+                user = User.objects.get(username=username)
+                Notification.objects.create(
+                    user=user,
+                    message=f'You were mentioned in the description of card "{instance.title}"',
+                    type='mention',
+                    card=instance,
+                    board=instance.list.board
+                )
+            except User.DoesNotExist:
+                continue
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
+        # --- Notification logic for new assignees ---
         if assignees is not None:
+            old_assignees = set(instance.assignees.all())
             instance.assignees.set(assignees)
+            new_assignees = set(instance.assignees.all())
+            added_assignees = new_assignees - old_assignees
+            for user in added_assignees:
+                Notification.objects.create(
+                    user=user,
+                    message=f'You were assigned a new card: "{instance.title}"',
+                    type='card_assigned',
+                    card=instance,
+                    board=instance.list.board
+                )
         if labels is not None:
             instance.labels.set(labels)
 
@@ -155,3 +213,14 @@ class BoardMemberSerializer(serializers.ModelSerializer):
 
     def get_first_name(self, obj):
         return obj.user.first_name or obj.user.username or "No Name"
+
+# Notification serializer
+from .models import Notification
+from rest_framework import serializers
+
+class NotificationSerializer(serializers.ModelSerializer):
+    board_id = serializers.IntegerField(source='board.id', read_only=True)
+    card_id = serializers.IntegerField(source='card.id', read_only=True)
+    class Meta:
+        model = Notification
+        fields = '__all__'  # board and card are now included

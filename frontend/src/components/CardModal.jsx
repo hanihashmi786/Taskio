@@ -335,9 +335,9 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
   }
 
   const handleAddComment = async () => {
-    if (!newComment.trim()) return
+    if (!newComment || !newComment.trim()) return
     try {
-      await addComment(card.id, { text: newComment.trim() })
+      await addComment(card.id, { text: newComment })
       setNewComment("")
     } catch (error) {
       console.error("Error adding comment:", error)
@@ -941,17 +941,16 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                           className="w-10 h-10 rounded-full flex-shrink-0 ring-2 ring-white dark:ring-slate-700"
                         />
                         <div className="flex-1 space-y-3">
-                          <textarea
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            placeholder="Write a comment..."
-                            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl focus:outline-none focus:border-blue-500 bg-white dark:bg-slate-700 text-gray-900 dark:text-white resize-none transition-colors duration-200 text-sm font-medium"
-                            rows={3}
+                          <EnhancedRichTextEditor
+                            defaultValue={newComment}
+                            onChange={setNewComment}
+                            placeholder="Write a comment... Use @ to mention a user"
+                            users={mentionUsers}
                           />
                           <div className="flex justify-end">
                             <button
                               onClick={handleAddComment}
-                              disabled={!newComment.trim()}
+                              disabled={!newComment || !newComment.trim()}
                               className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-xl transition-colors duration-200 disabled:cursor-not-allowed text-sm font-semibold"
                             >
                               Add Comment
@@ -988,9 +987,10 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
                                   {formatDate(comment.created_at)}
                                 </span>
                               </div>
-                              <p className="text-gray-700 dark:text-slate-300 whitespace-pre-wrap text-sm leading-relaxed">
-                                {comment.text}
-                              </p>
+                              <div
+                                className="text-gray-700 dark:text-slate-300 whitespace-pre-wrap text-sm leading-relaxed"
+                                dangerouslySetInnerHTML={{ __html: comment.text }}
+                              />
                             </div>
                           </div>
                         )

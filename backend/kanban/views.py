@@ -2,13 +2,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Board, List, Card, Label, Checklist, ChecklistItem, Comment, BoardMembership, Attachment
+from .models import Board, List, Card, Label, Checklist, ChecklistItem, Comment, BoardMembership, Attachment, Notification
 from .serializers import (
     BoardSerializer, ListSerializer, CardSerializer,
     LabelSerializer, ChecklistSerializer, ChecklistItemSerializer, CommentSerializer, AttachmentSerializer,
+    NotificationSerializer,
 )
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import generics, permissions, status
+from rest_framework.response import Response
 
 # ------------------- BOARD -------------------
 class BoardAPI(APIView):
@@ -320,3 +323,30 @@ class BoardImageUploadAPI(APIView):
         path = default_storage.save(f'backgrounds/{file_obj.name}', file_obj)
         url = settings.MEDIA_URL + path
         return Response({'url': url}, status=status.HTTP_201_CREATED)
+
+# Notification API views
+class NotificationListView(generics.ListAPIView):
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user)
+
+class NotificationMarkReadView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        Notification.objects.filter(user=request.user, read=False).update(read=True)
+        return Response({'status': 'all marked as read'}, status=status.HTTP_200_OK)
+
+# Notification delete API view
+from rest_framework import generics, permissions
+
+class NotificationDeleteView(generics.DestroyAPIView):
+    queryset = Notification.objects.all()
+    serializer_class = NotificationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Only allow users to delete their own notifications
+        return Notification.objects.filter(user=self.request.user)

@@ -8,6 +8,7 @@ import BoardMembers from "./BoardMembers"
 import NotificationCenter from "./NotificationCenter"
 import { Sun, Moon, Search, Menu, User, LogOut, Users, Bell, Settings, Loader2 } from "lucide-react"
 import API from "../api"
+import { fetchNotifications, markNotificationsAsRead as markReadAPI, deleteNotification } from "../api/notifications"
 
 const MEDIA_URL = import.meta.env.VITE_MEDIA_URL || ""
 
@@ -39,52 +40,6 @@ const Header = () => {
   const isBoardView = location.pathname.includes("/dashboard/board/")
   const isAuthenticated = !!contextUser?.id
 
-  // Sample notifications for demonstration
-  const sampleNotifications = [
-    {
-      id: 1,
-      type: "member_joined",
-      message: "Hani joined the board 'Project Alpha'",
-      created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-      read: false,
-      board_name: "Project Alpha",
-      user_name: "Hani",
-    },
-    {
-      id: 2,
-      type: "card_assigned",
-      message: "You are assigned the card 'Fix login bug'",
-      created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-      read: false,
-      card_title: "Fix login bug",
-    },
-    {
-      id: 3,
-      type: "mention",
-      message: "You are mentioned in description of 'Update documentation'",
-      created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      read: false,
-      card_title: "Update documentation",
-    },
-    {
-      id: 4,
-      type: "due_date_near",
-      message: "The deadline is near for 'Complete user testing'",
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      read: true,
-      card_title: "Complete user testing",
-    },
-    {
-      id: 5,
-      type: "card_moved",
-      message: "Card 'Design mockups' was moved to 'In Progress'",
-      created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-      read: true,
-      card_title: "Design mockups",
-      list_name: "In Progress",
-    },
-  ]
-
   // Fetch user data on component mount if authenticated but no user data
   useEffect(() => {
     const fetchUserData = async () => {
@@ -111,11 +66,17 @@ const Header = () => {
     fetchUserData()
   }, [contextUser, setUser])
 
-  // Initialize notifications with sample data
+  // Fetch notifications from backend
   useEffect(() => {
     if (isAuthenticated) {
-      setNotifications(sampleNotifications)
-      setUnreadCount(sampleNotifications.filter((n) => !n.read).length)
+      fetchNotifications()
+        .then(res => {
+          setNotifications(res.data)
+          setUnreadCount(res.data.filter(n => !n.read).length)
+        })
+        .catch(err => {
+          console.error("Failed to fetch notifications:", err)
+        })
     }
   }, [isAuthenticated])
 
@@ -180,14 +141,22 @@ const Header = () => {
 
   const markNotificationsAsRead = async () => {
     if (unreadCount === 0) return
-
     try {
-      // In a real app, this would be an API call
-      // await API.post("/notifications/mark-read/")
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+      await markReadAPI()
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })))
       setUnreadCount(0)
     } catch (error) {
       console.error("Failed to mark notifications as read:", error)
+    }
+  }
+
+  const handleRemoveNotification = async (id) => {
+    try {
+      await deleteNotification(id)
+      setNotifications((prev) => prev.filter((n) => n.id !== id))
+      setUnreadCount((prev) => Math.max(0, prev - 1))
+    } catch (error) {
+      console.error("Failed to delete notification:", error)
     }
   }
 
@@ -293,6 +262,7 @@ const Header = () => {
                     notifications={notifications}
                     onClose={() => setShowNotifications(false)}
                     onMarkAsRead={markNotificationsAsRead}
+                    onRemove={handleRemoveNotification}
                   />
                 )}
               </div>

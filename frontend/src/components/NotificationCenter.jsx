@@ -1,8 +1,8 @@
 "use client"
 import { useState } from "react"
-import { X, Bell, Check, Clock, Users, MessageCircle, Calendar, ArrowRight } from "lucide-react"
+import { X, Bell, Check, Clock, Users, MessageCircle, Calendar, ArrowRight, Trash2 } from "lucide-react"
 
-const NotificationCenter = ({ notifications, onClose, onMarkAsRead }) => {
+const NotificationCenter = ({ notifications, onClose, onMarkAsRead, onRemove, onNotificationClick }) => {
   const [filter, setFilter] = useState("all") // all, unread, mentions, assignments
 
   const getNotificationIcon = (type) => {
@@ -160,42 +160,58 @@ const NotificationCenter = ({ notifications, onClose, onMarkAsRead }) => {
             </div>
           ) : (
             <div className="divide-y divide-gray-100 dark:divide-slate-700">
-              {filteredNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer border-l-4 ${getNotificationColor(notification.type, notification.read)}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 mt-0.5">{getNotificationIcon(notification.type)}</div>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-sm leading-relaxed ${notification.read ? "text-gray-600 dark:text-slate-400" : "text-gray-900 dark:text-slate-100 font-medium"}`}
-                      >
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
-                          <Clock className="w-3 h-3" />
-                          <span>{formatTimeAgo(notification.created_at)}</span>
+              {filteredNotifications.map((notification) => {
+                const handleClick = () => {
+                  if (onNotificationClick && notification.card_id && notification.board_id) {
+                    onNotificationClick(notification.card_id, notification.board_id)
+                  }
+                }
+                return (
+                  <div
+                    key={notification.id}
+                    className={`p-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer border-l-4 ${getNotificationColor(notification.type, notification.read)}`}
+                    onClick={handleClick}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-0.5">{getNotificationIcon(notification.type)}</div>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm leading-relaxed ${notification.read ? "text-gray-600 dark:text-slate-400" : "text-gray-900 dark:text-slate-100 font-medium"}`}
+                        >
+                          {notification.message}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+                            <Clock className="w-3 h-3" />
+                            <span>{formatTimeAgo(notification.created_at)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!notification.read && <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}
+                            <button
+                              onClick={() => onRemove && onRemove(notification.id)}
+                              className="ml-2 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
+                              title="Remove notification"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </button>
+                          </div>
                         </div>
-                        {!notification.read && <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />}
+                        {/* Additional context based on notification type */}
+                        {notification.board_name && (
+                          <div className="mt-2 px-2 py-1 bg-gray-100 dark:bg-slate-600 rounded text-xs text-gray-600 dark:text-slate-300">
+                            Board: {notification.board_name}
+                          </div>
+                        )}
+                        {notification.card_title && (
+                          <div className="mt-2 px-2 py-1 bg-gray-100 dark:bg-slate-600 rounded text-xs text-gray-600 dark:text-slate-300">
+                            Card: {notification.card_title}
+                          </div>
+                        )}
                       </div>
-
-                      {/* Additional context based on notification type */}
-                      {notification.board_name && (
-                        <div className="mt-2 px-2 py-1 bg-gray-100 dark:bg-slate-600 rounded text-xs text-gray-600 dark:text-slate-300">
-                          Board: {notification.board_name}
-                        </div>
-                      )}
-                      {notification.card_title && (
-                        <div className="mt-2 px-2 py-1 bg-gray-100 dark:bg-slate-600 rounded text-xs text-gray-600 dark:text-slate-300">
-                          Card: {notification.card_title}
-                        </div>
-                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -205,12 +221,6 @@ const NotificationCenter = ({ notifications, onClose, onMarkAsRead }) => {
           <div className="p-3 border-t border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-800/50">
             <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
               <span>{filteredNotifications.length} notifications</span>
-              <button
-                onClick={onClose}
-                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-              >
-                View all in settings
-              </button>
             </div>
           </div>
         )}

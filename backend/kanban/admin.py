@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Board, BoardMembership, List, Card, Checklist, ChecklistItem, Comment, Label
+from .models import Board, BoardMembership, List, Card, Checklist, ChecklistItem, Comment, Label, Notification
 
 admin.site.register(Board)
 admin.site.register(BoardMembership)
@@ -18,3 +18,5 @@ class LabelAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'color', 'text_color', 'board')
 
 admin.site.register(Label, LabelAdmin)
+
+admin.site.register(Notification)
