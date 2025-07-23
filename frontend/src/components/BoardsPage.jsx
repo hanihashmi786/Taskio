@@ -329,11 +329,7 @@ const BoardsPage = () => {
                         <span>{getCardCount(board)} cards</span>
                         <span>{board.members?.length || 0} members</span>
                       </div>
-                      {viewMode === "grid" && (
-                        <div className="text-xs text-gray-400 dark:text-slate-500" style={board.background_image ? { color: '#e5e7eb', position: 'relative', zIndex: 2 } : {}}>
-                          Created {formatDate(board.createdAt)}
-                        </div>
-                      )}
+                      
                     </button>
 
                     {canEditBoard(board.id) && (
