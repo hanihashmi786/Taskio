@@ -17,6 +17,8 @@ const NotificationCenter = ({ notifications, onClose, onMarkAsRead, onRemove, on
         return <Calendar className="w-5 h-5 text-orange-500" />
       case "card_moved":
         return <ArrowRight className="w-5 h-5 text-indigo-500" />
+      case "board_joined":
+        return <Users className="w-5 h-5 text-teal-500" />
       default:
         return <Bell className="w-5 h-5 text-gray-500" />
     }
@@ -36,6 +38,8 @@ const NotificationCenter = ({ notifications, onClose, onMarkAsRead, onRemove, on
         return "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800"
       case "card_moved":
         return "bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800"
+      case "board_joined":
+        return "bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800"
       default:
         return "bg-gray-50 dark:bg-slate-700/30 border-gray-200 dark:border-slate-600"
     }
@@ -66,6 +70,8 @@ const NotificationCenter = ({ notifications, onClose, onMarkAsRead, onRemove, on
         return notification.type === "mention"
       case "assignments":
         return notification.type === "card_assigned"
+      case "board_joins":
+        return notification.type === "board_joined"
       default:
         return true
     }
@@ -124,6 +130,11 @@ const NotificationCenter = ({ notifications, onClose, onMarkAsRead, onRemove, on
               id: "assignments",
               label: "Assigned",
               count: notifications.filter((n) => n.type === "card_assigned").length,
+            },
+            {
+              id: "board_joins",
+              label: "Joined",
+              count: notifications.filter((n) => n.type === "board_joined").length,
             },
           ].map((tab) => (
             <button

@@ -163,6 +163,15 @@ class AddBoardMemberAPIView(APIView):
             role = 'member'
 
         BoardMembership.objects.create(board=board, user=user, role=role)
+        
+        # Emit board_joined notification
+        from kanban.models import Notification
+        Notification.objects.create(
+            user=user,
+            message=f'You joined the board "{board.title}"',
+            type='board_joined',
+            board=board
+        )
         return Response({'success': True, 'message': 'User added to board.'})
 
 class UpdateBoardMemberRoleAPIView(APIView):

@@ -236,7 +236,7 @@ const CardModal = ({ isOpen, onClose, card, listId }) => {
       await updateCard(card.id, {
         title: formData.title,
         description: formData.description,
-        due_date: formData.due_date ? formData.due_date.slice(0, 10) : "",
+        due_date: formData.due_date ? formData.due_date.slice(0, 10) : null, // allow null
         labels: formData.labels,
         assignees: formData.assignees,
       })

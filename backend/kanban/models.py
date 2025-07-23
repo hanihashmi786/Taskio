@@ -9,7 +9,7 @@ class Board(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     color = models.CharField(max_length=30, default="bg-blue-500")
-    icon = models.CharField(max_length=10, default="📋")
+    icon = models.CharField(max_length=10, blank=True, null=True, default="")
     members = models.ManyToManyField(User, through="BoardMembership", related_name="boards")
     created_at = models.DateTimeField(default=timezone.now)
     background_theme = models.JSONField(default=dict, blank=True)

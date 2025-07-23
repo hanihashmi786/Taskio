@@ -178,6 +178,7 @@ class BoardSerializer(serializers.ModelSerializer):
     lists = serializers.SerializerMethodField()
     created_by = serializers.PrimaryKeyRelatedField(read_only=True)
     members = serializers.SerializerMethodField()
+    icon = serializers.CharField(required=False, allow_blank=True, allow_null=True, default="")
 
     class Meta:
         model = Board

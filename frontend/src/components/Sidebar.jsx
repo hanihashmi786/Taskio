@@ -147,7 +147,6 @@ const Sidebar = () => {
                       {!sidebarCollapsed && (
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm">{board.icon}</span>
                             <span
                               className={`text-sm font-medium truncate transition-colors ${
                                 isCurrentBoard

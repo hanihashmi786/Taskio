@@ -56,6 +56,7 @@ const BoardsPage = () => {
   }
 
   const formatDate = (dateString) => {
+    if (!dateString || isNaN(new Date(dateString).getTime())) return "No Date"
     return new Date(dateString).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -257,46 +258,79 @@ const BoardsPage = () => {
                       className={`w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl hover:shadow-lg transition-all duration-200 card-shadow text-left interactive ${
                         viewMode === "list" ? "p-4 flex items-center gap-4" : "p-6"
                       }`}
+                      style={(() => {
+                        if (board.background_theme && board.background_theme.backgroundImage) {
+                          return {
+                            backgroundImage: `url(${board.background_theme.backgroundImage})`,
+                            backgroundSize: board.background_theme.backgroundSize || 'cover',
+                            backgroundPosition: board.background_theme.backgroundPosition || 'center',
+                            backgroundRepeat: board.background_theme.backgroundRepeat || 'no-repeat',
+                            position: 'relative',
+                            color: '#fff',
+                            border: 'none',
+                            overflow: 'hidden',
+                          }
+                        } else if (board.background_image) {
+                          return {
+                            backgroundImage: `url(${board.background_image})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            position: 'relative',
+                            color: '#fff',
+                            border: 'none',
+                            overflow: 'hidden',
+                          }
+                        } else {
+                          return {}
+                        }
+                      })()}
                     >
-                      <div className={`flex items-center ${viewMode === "list" ? "gap-4 flex-1" : "space-x-3 mb-4"}`}>
+                      {(board.background_theme && board.background_theme.backgroundImage) || board.background_image ? (
+                        <div style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'rgba(0,0,0,0.35)',
+                          zIndex: 1,
+                          borderRadius: 'inherit',
+                        }} />
+                      ) : null}
+                      <div className={`flex items-center ${viewMode === "list" ? "gap-4 flex-1" : "space-x-3 mb-4"}`} style={board.background_image ? { position: 'relative', zIndex: 2 } : {}}>
                         <div className={`w-4 h-4 rounded-full`} style={{background: board.color || "#3498db"}} />
-                        <span className="text-2xl">{board.icon}</span>
+                        {/* icon removed */}
                         {board.starred && <Star className="w-4 h-4 text-yellow-500" />}
                         {viewMode === "list" && (
                           <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            <h3 className="font-semibold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" style={board.background_image ? { color: '#fff' } : {}}>
                               {board.title}
                             </h3>
-                            <p className="text-sm text-gray-600 dark:text-slate-400 truncate">
+                            <p className="text-sm text-gray-600 dark:text-slate-400 truncate" style={board.background_image ? { color: '#f3f4f6' } : {}}>
                               {board.description || "No description"}
                             </p>
                           </div>
                         )}
                       </div>
-
                       {viewMode === "grid" && (
                         <>
-                          <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" style={board.background_image ? { color: '#fff', position: 'relative', zIndex: 2 } : {}}>
                             {board.title}
                           </h3>
-                          <p className="text-sm text-gray-600 dark:text-slate-400 mb-4 line-clamp-2">
+                          <p className="text-sm text-gray-600 dark:text-slate-400 mb-4 line-clamp-2" style={board.background_image ? { color: '#f3f4f6', position: 'relative', zIndex: 2 } : {}}>
                             {board.description || "No description"}
                           </p>
                         </>
                       )}
-
                       <div
                         className={`flex items-center text-xs text-gray-500 dark:text-slate-400 ${
                           viewMode === "list" ? "gap-6" : "justify-between mb-2"
                         }`}
+                        style={board.background_image ? { color: '#f3f4f6', position: 'relative', zIndex: 2 } : {}}
                       >
                         <span>{board.lists?.length || 0} lists</span>
                         <span>{getCardCount(board)} cards</span>
                         <span>{board.members?.length || 0} members</span>
                       </div>
-
                       {viewMode === "grid" && (
-                        <div className="text-xs text-gray-400 dark:text-slate-500">
+                        <div className="text-xs text-gray-400 dark:text-slate-500" style={board.background_image ? { color: '#e5e7eb', position: 'relative', zIndex: 2 } : {}}>
                           Created {formatDate(board.createdAt)}
                         </div>
                       )}
