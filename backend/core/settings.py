@@ -20,9 +20,10 @@ except json.JSONDecodeError:
     raise Exception("Invalid JSON format in config.json")
 
 
-SECRET_KEY = config.get('SECRET_KEY', '')
-DEBUG = config.get('DEBUG', False)
-ALLOWED_HOSTS = config.get('ALLOWED_HOSTS', [])
+# Get settings from environment variables (priority) or config.json (fallback)
+SECRET_KEY = os.environ.get('SECRET_KEY', config.get('SECRET_KEY', ''))
+DEBUG = os.environ.get('DEBUG', str(config.get('DEBUG', False))).lower() == 'true'
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else config.get('ALLOWED_HOSTS', [])
 
 
 
@@ -55,6 +56,7 @@ SIMPLE_JWT = {
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -93,8 +95,21 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-if config.get('DB_NAME') and config.get('DB_USER'):
-    # Use PostgreSQL (production)
+# Check for DATABASE_URL (common in production environments like Render, Railway, Heroku)
+database_url = os.environ.get('DATABASE_URL')
+
+if database_url:
+    # Parse DATABASE_URL for production (PostgreSQL)
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=database_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+elif config.get('DB_NAME') and config.get('DB_USER'):
+    # Use PostgreSQL from config.json
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -106,14 +121,13 @@ if config.get('DB_NAME') and config.get('DB_USER'):
         }
     }
 else:
-    # Use SQLite (local)
+    # Use SQLite (local development)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
-    
-}
+    }
 
 
 # Password validation
@@ -150,8 +164,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Whitenoise configuration for serving static files in production
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

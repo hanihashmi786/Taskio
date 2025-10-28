@@ -1,0 +1,6 @@
+{
+    "SECRET_KEY": "CHANGE-THIS-TO-A-SECURE-RANDOM-STRING",
+    "DEBUG": false,
+    "ALLOWED_HOSTS": ["your-backend-domain.com", "www.your-backend-domain.com"]
+}
+
